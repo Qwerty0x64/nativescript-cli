@@ -1,5 +1,9 @@
 import { assert } from "chai";
-import { CONNECTED_STATUS, DEBUGGER_PORT_FOUND_EVENT_NAME, DEVICE_LOG_EVENT_NAME } from "../../lib/common/constants";
+import {
+	CONNECTED_STATUS,
+	DEBUGGER_PORT_FOUND_EVENT_NAME,
+	DEVICE_LOG_EVENT_NAME,
+} from "../../lib/common/constants";
 import { ErrorsStub, LoggerStub } from "../stubs";
 import { IOSDebuggerPortService } from "../../lib/services/ios-debugger-port-service";
 import { LogParserService } from "../../lib/services/log-parser-service";
@@ -7,8 +11,10 @@ import { DevicePlatformsConstants } from "../../lib/common/mobile/device-platfor
 import { Yok } from "../../lib/common/yok";
 import { EventEmitter } from "events";
 import * as sinon from "sinon";
+import * as _ from "lodash";
+import { IInjector } from "../../lib/common/definitions/yok";
 
-class DeviceApplicationManagerMock extends EventEmitter { }
+class DeviceApplicationManagerMock extends EventEmitter {}
 
 class DeveiceLogProviderMock extends EventEmitter {
 	public logData(id: string): void {
@@ -22,9 +28,9 @@ const device = <Mobile.IDevice>{
 	deviceInfo: {
 		identifier: deviceId,
 		status: CONNECTED_STATUS,
-		platform: "ios"
+		platform: "ios",
 	},
-	applicationManager: new DeviceApplicationManagerMock()
+	applicationManager: new DeviceApplicationManagerMock(),
 };
 
 function createTestInjector() {
@@ -37,25 +43,25 @@ function createTestInjector() {
 	injector.register("iOSDebuggerPortService", IOSDebuggerPortService);
 	injector.register("logParserService", LogParserService);
 	injector.register("iOSProjectService", {
-		getFrameworkVersion: () => "4.1.0"
+		getFrameworkVersion: () => "4.1.0",
 	});
 	injector.register("previewSdkService", {
-		on: () => () => ({})
+		on: () => () => ({}),
 	});
 	injector.register("iOSSimResolver", {
-		iOSSim: () => ({})
+		iOSSim: () => ({}),
 	});
 	injector.register("logger", LoggerStub);
 	injector.register("projectDataService", {
 		getProjectData: (projectDir: string) => ({
 			projectName: "test",
-			projectId: appId
-		})
+			projectId: appId,
+		}),
 	});
 	injector.register("devicesService", {
 		getDeviceByIdentifier: () => {
 			return device;
-		}
+		},
 	});
 	injector.register("iOSNotification", DeviceApplicationManagerMock);
 
@@ -131,7 +137,9 @@ function getMultilineAppCrashMessage() {
 }
 
 describe("iOSDebuggerPortService", () => {
-	let injector: IInjector, iOSDebuggerPortService: IIOSDebuggerPortService, deviceLogProvider: Mobile.IDeviceLogProvider;
+	let injector: IInjector,
+		iOSDebuggerPortService: IIOSDebuggerPortService,
+		deviceLogProvider: Mobile.IDeviceLogProvider;
 	let clock: sinon.SinonFakeTimers = null;
 
 	beforeEach(() => {
@@ -146,30 +154,39 @@ describe("iOSDebuggerPortService", () => {
 	});
 
 	function emitDeviceLog(message: string) {
-		deviceLogProvider.emit(DEVICE_LOG_EVENT_NAME, message, device.deviceInfo.identifier);
+		deviceLogProvider.emit(
+			DEVICE_LOG_EVENT_NAME,
+			message,
+			device.deviceInfo.identifier
+		);
 	}
 	describe("getPort", () => {
-		const testCases: { name: string, emittedPort?: number, crashApp?: boolean, expectedError?: string }[] = [
+		const testCases: {
+			name: string;
+			emittedPort?: number;
+			crashApp?: boolean;
+			expectedError?: string;
+		}[] = [
 			{
 				name: `should return null when ${DEBUGGER_PORT_FOUND_EVENT_NAME} event is not emitted`,
-				emittedPort: null
+				emittedPort: null,
 			},
 			{
 				name: `should return default port when ${DEBUGGER_PORT_FOUND_EVENT_NAME} event is emitted`,
-				emittedPort: 18181
+				emittedPort: 18181,
 			},
 			{
 				name: `should return random port when ${DEBUGGER_PORT_FOUND_EVENT_NAME} event is emitted`,
-				emittedPort: 65432
+				emittedPort: 65432,
 			},
 			{
 				name: `should reject when the app crashes`,
 				expectedError: "The application has been terminated.",
-				crashApp: true
-			}
+				crashApp: true,
+			},
 		];
 
-		_.each(testCases, testCase => {
+		_.each(testCases, (testCase) => {
 			it(testCase.name, async () => {
 				await iOSDebuggerPortService.attachToDebuggerPortFoundEvent(appId);
 				if (testCase.emittedPort) {
@@ -178,14 +195,17 @@ describe("iOSDebuggerPortService", () => {
 					emitDeviceLog(getAppCrashMessage());
 				}
 
-				const promise = iOSDebuggerPortService.getPort({ deviceId: deviceId, appId: appId });
+				const promise = iOSDebuggerPortService.getPort({
+					deviceId: deviceId,
+					appId: appId,
+				});
 				clock.tick(70000);
 				let port = 0;
 				try {
 					port = await promise;
-					assert.deepEqual(port, testCase.emittedPort);
+					assert.deepStrictEqual(port, testCase.emittedPort);
 				} catch (err) {
-					assert.deepEqual(err.message, testCase.expectedError);
+					assert.deepStrictEqual(err.message, testCase.expectedError);
 				}
 			});
 			it(`${testCase.name} for multiline debugger port message.`, async () => {
@@ -196,14 +216,17 @@ describe("iOSDebuggerPortService", () => {
 					emitDeviceLog(getMultilineAppCrashMessage());
 				}
 
-				const promise = iOSDebuggerPortService.getPort({ deviceId: deviceId, appId: appId });
+				const promise = iOSDebuggerPortService.getPort({
+					deviceId: deviceId,
+					appId: appId,
+				});
 				clock.tick(70000);
 				let port = 0;
 				try {
 					port = await promise;
-					assert.deepEqual(port, testCase.emittedPort);
+					assert.deepStrictEqual(port, testCase.emittedPort);
 				} catch (err) {
-					assert.deepEqual(err.message, testCase.expectedError);
+					assert.deepStrictEqual(err.message, testCase.expectedError);
 				}
 			});
 		});

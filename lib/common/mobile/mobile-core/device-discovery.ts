@@ -1,7 +1,12 @@
 import { EventEmitter } from "events";
 import { DeviceDiscoveryEventNames } from "../../constants";
+import { IDictionary } from "../../declarations";
+import * as _ from "lodash";
+import { injector } from "../../yok";
 
-export class DeviceDiscovery extends EventEmitter implements Mobile.IDeviceDiscovery {
+export class DeviceDiscovery
+	extends EventEmitter
+	implements Mobile.IDeviceDiscovery {
 	private devices: IDictionary<Mobile.IDevice> = {};
 
 	public async startLookingForDevices(): Promise<void> {
@@ -50,4 +55,4 @@ export class DeviceDiscovery extends EventEmitter implements Mobile.IDeviceDisco
 		this.emit(DeviceDiscoveryEventNames.DEVICE_LOST, device);
 	}
 }
-$injector.register("deviceDiscovery", DeviceDiscovery);
+injector.register("deviceDiscovery", DeviceDiscovery);

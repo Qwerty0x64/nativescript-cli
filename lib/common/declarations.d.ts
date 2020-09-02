@@ -1,12 +1,22 @@
+import { IOptions } from "../declarations";
+import { IJsonFileSettingsService } from "./definitions/json-file-settings-service";
+import {
+	IEventActionData,
+	IGoogleAnalyticsData,
+} from "./definitions/google-analytics";
+import * as child_process from "child_process";
+
+// tslint:disable-next-line:interface-name
 interface Object {
 	[key: string]: any;
 }
 
-interface IStringDictionary extends IDictionary<string> { }
+interface IStringDictionary extends IDictionary<string> {}
 
 /**
  * Describes iTunes Connect application types
  */
+// tslint:disable-next-line:interface-name
 interface IiTunesConnectApplicationType {
 	/**
 	 * Applications developed for iOS
@@ -27,12 +37,13 @@ interface IiTunesConnectApplicationType {
  */
 declare const enum GoogleAnalyticsDataType {
 	Page = "pageview",
-	Event = "event"
+	Event = "event",
 }
 
 /**
  * Descibes iTunes Connect applications
  */
+// tslint:disable-next-line:interface-name
 interface IiTunesConnectApplication {
 	/**
 	 * Unique Apple ID for each application. Automatically generated and assigned by Apple.
@@ -61,7 +72,7 @@ interface IiTunesConnectApplication {
 	sku: string;
 	/**
 	 * Application's type
-	 * @type {IItunesConnectApplicationTypes}
+	 * @type {string}
 	 */
 	type: string;
 	/**
@@ -121,7 +132,7 @@ interface IContentDeliveryBody {
 	result: {
 		/**
 		 * A list of the user's applications.
-		 * @type {IItunesConnectApplication[]}
+		 * @type {IiTunesConnectApplication[]}
 		 */
 		Applications: IiTunesConnectApplication[];
 		/**
@@ -157,14 +168,17 @@ declare module Server {
 
 	interface IHttpClient {
 		httpRequest(url: string): Promise<IResponse>;
-		httpRequest(options: any, proxySettings?: IProxySettings): Promise<IResponse>;
+		httpRequest(
+			options: any,
+			proxySettings?: IProxySettings
+		): Promise<IResponse>;
 	}
 
 	interface IRequestResponseData {
 		statusCode: number;
 		headers: { [index: string]: any };
 		complete: boolean;
-		pipe(destination: any, options?: { end?: boolean; }): IRequestResponseData;
+		pipe(destination: any, options?: { end?: boolean }): IRequestResponseData;
 		on(event: string, listener: Function): void;
 		destroy(error?: Error): void;
 	}
@@ -232,7 +246,7 @@ declare const enum AnalyticsStatus {
 	/**
 	 * User has not been asked to allow feature and error tracking.
 	 */
-	notConfirmed = "not confirmed"
+	notConfirmed = "not confirmed",
 }
 
 /**
@@ -258,7 +272,7 @@ declare const enum OptionType {
 	/**
 	 * Object option
 	 */
-	Object = "object"
+	Object = "object",
 }
 
 /**
@@ -268,7 +282,7 @@ interface IReadFileOptions {
 	/**
 	 * Defines the encoding. Defaults to null.
 	 */
-	encoding: string;
+	encoding?: BufferEncoding | null;
 
 	/**
 	 * Defines file flags. Defaults to "r".
@@ -277,8 +291,17 @@ interface IReadFileOptions {
 }
 
 interface IFileSystem {
-	zipFiles(zipFile: string, files: string[], zipPathCallback: (path: string) => string): Promise<void>;
-	unzip(zipFile: string, destinationDir: string, options?: { overwriteExisitingFiles?: boolean; caseSensitive?: boolean }, fileFilters?: string[]): Promise<void>;
+	zipFiles(
+		zipFile: string,
+		files: string[],
+		zipPathCallback: (path: string) => string
+	): Promise<void>;
+	unzip(
+		zipFile: string,
+		destinationDir: string,
+		options?: { overwriteExisitingFiles?: boolean; caseSensitive?: boolean },
+		fileFilters?: string[]
+	): Promise<void>;
 
 	/**
 	 * Test whether or not the given path exists by checking with the file system.
@@ -322,9 +345,12 @@ interface IFileSystem {
 	 * @param {Date}   mtime Modified time
 	 * @returns {void}
 	 */
-	utimes(path: string, atime: Date, mtime: Date): void
+	utimes(path: string, atime: Date, mtime: Date): void;
 
-	futureFromEvent(eventEmitter: NodeJS.EventEmitter, event: string): Promise<any>;
+	futureFromEvent(
+		eventEmitter: NodeJS.EventEmitter,
+		event: string
+	): Promise<any>;
 
 	/**
 	 * Create a new directory and any necessary subdirectories at specified location.
@@ -343,15 +369,15 @@ interface IFileSystem {
 	/**
 	 * Reads the entire contents of a file.
 	 * @param {string} filename Path to the file that has to be read.
-	 * @param {string} @optional options Options used for reading the file - encoding and flags.
-	 * @returns {string|NodeBuffer} Content of the file as buffer. In case encoding is specified, the content is returned as string.
+	 * @param {string} options Options used for reading the file - encoding and flags.
+	 * @returns {string|Buffer} Content of the file as buffer. In case encoding is specified, the content is returned as string.
 	 */
-	readFile(filename: string, options?: IReadFileOptions): string | NodeBuffer;
+	readFile(filename: string, options?: IReadFileOptions): string | Buffer;
 
 	/**
 	 * Reads the entire contents of a file and returns the result as string.
 	 * @param {string} filename Path to the file that has to be read.
-	 * @param {string} @optional options Options used for reading the file - encoding and flags. If options are not passed, utf8 is used.
+	 * @param {IReadFileOptions | string} encoding Options used for reading the file - encoding and flags. If options are not passed, utf8 is used.
 	 * @returns {string} Content of the file as string.
 	 */
 	readText(filename: string, encoding?: IReadFileOptions | string): string;
@@ -359,7 +385,7 @@ interface IFileSystem {
 	/**
 	 * Reads the entire content of a file and parses it to JSON object.
 	 * @param {string} filename Path to the file that has to be read.
-	 * @param {string} @optional encoding File encoding, defaults to utf8.
+	 * @param {string} encoding File encoding, defaults to utf8.
 	 * @returns {string} Content of the file as JSON object.
 	 */
 	readJson(filename: string, encoding?: string): any;
@@ -369,20 +395,20 @@ interface IFileSystem {
 	/**
 	 * Writes data to a file, replacing the file if it already exists. data can be a string or a buffer.
 	 * @param {string} filename Path to file to be created.
-	 * @param {string | NodeBuffer} data Data to be written to file.
+	 * @param {string | Buffer} data Data to be written to file.
 	 * @param {string} encoding @optional File encoding, defaults to utf8.
 	 * @returns {void}
 	 */
-	writeFile(filename: string, data: string | NodeBuffer, encoding?: string): void;
+	writeFile(filename: string, data: string | Buffer, encoding?: string): void;
 
 	/**
 	 * Appends data to a file, creating the file if it does not yet exist. Data can be a string or a buffer.
 	 * @param {string} filename Path to file to be created.
-	 * @param {string | NodeBuffer} data Data to be appended to file.
+	 * @param {string | Buffer} data Data to be appended to file.
 	 * @param {string} encoding @optional File encoding, defaults to utf8.
 	 * @returns {void}
 	 */
-	appendFile(filename: string, data: string | NodeBuffer, encoding?: string): void;
+	appendFile(filename: string, data: string | Buffer, encoding?: string): void;
 
 	/**
 	 * Writes JSON data to file.
@@ -392,7 +418,12 @@ interface IFileSystem {
 	 * @param {string} encoding @optional File encoding, defaults to utf8.
 	 * @returns {void}
 	 */
-	writeJson(filename: string, data: any, space?: string, encoding?: string): void;
+	writeJson(
+		filename: string,
+		data: any,
+		space?: string,
+		encoding?: string
+	): void;
 
 	/**
 	 * Copies a file.
@@ -416,7 +447,9 @@ interface IFileSystem {
 	 */
 	isEmptyDir(directoryPath: string): boolean;
 
-	isRelativePath(path: string): boolean /* feels so lonely here, I don't have a Future */;
+	isRelativePath(
+		path: string
+	): boolean /* feels so lonely here, I don't have a Future */;
 
 	/**
 	 * Checks if directory exists and if not - creates it.
@@ -440,7 +473,7 @@ interface IFileSystem {
 	 * @param {string} newPath The path where the file will be moved.
 	 * @return {boolean} True in case of successful rename. False in case the file does not exist.
 	 */
-	renameIfExists(oldPath: string, newPath: string): boolean
+	renameIfExists(oldPath: string, newPath: string): boolean;
 
 	/**
 	 * Returns information about the specified file.
@@ -469,7 +502,7 @@ interface IFileSystem {
 	 * or directory.
 	 * @param {string} sourcePath The original path of the file/dir.
 	 * @param {string} destinationPath The destination where symlink will be created.
-	 * @param {string} @optional type "file", "dir" or "junction". Default is 'file'.
+	 * @param {string} type "file", "dir" or "junction". Default is 'file'.
 	 * Type option is only available on Windows (ignored on other platforms).
 	 * Note that Windows junction points require the destination path to be absolute.
 	 * When using 'junction', the target argument will automatically be normalized to absolute path.
@@ -477,21 +510,27 @@ interface IFileSystem {
 	 */
 	symlink(sourcePath: string, destinationPath: string, type?: string): void;
 
-	createReadStream(path: string, options?: {
-		flags?: string;
-		encoding?: string;
-		fd?: number;
-		mode?: number;
-		bufferSize?: number;
-		start?: number;
-		end?: number;
-		highWaterMark?: number;
-	}): NodeJS.ReadableStream;
-	createWriteStream(path: string, options?: {
-		flags?: string;
-		encoding?: string;
-		string?: string;
-	}): any;
+	createReadStream(
+		path: string,
+		options?: {
+			flags?: string;
+			encoding?: string;
+			fd?: number;
+			mode?: number;
+			bufferSize?: number;
+			start?: number;
+			end?: number;
+			highWaterMark?: number;
+		}
+	): NodeJS.ReadableStream;
+	createWriteStream(
+		path: string,
+		options?: {
+			flags?: string;
+			encoding?: string;
+			string?: string;
+		}
+	): any;
 
 	/**
 	 * Changes file mode of the specified file. In case it is a symlink, the original file's mode is modified.
@@ -502,7 +541,11 @@ interface IFileSystem {
 	chmod(path: string, mode: number | string): void;
 
 	setCurrentUserAsOwner(path: string, owner: string): Promise<void>;
-	enumerateFilesInDirectorySync(directoryPath: string, filterCallback?: (file: string, stat: IFsStats) => boolean, opts?: { enumerateDirectories?: boolean, includeEmptyDirectories?: boolean }): string[];
+	enumerateFilesInDirectorySync(
+		directoryPath: string,
+		filterCallback?: (file: string, stat: IFsStats) => boolean,
+		opts?: { enumerateDirectories?: boolean; includeEmptyDirectories?: boolean }
+	): string[];
 
 	/**
 	 * Hashes a file's contents.
@@ -510,12 +553,15 @@ interface IFileSystem {
 	 * @param {Object} options algorithm and digest encoding. Default values are sha1 for algorithm and hex for encoding
 	 * @return {Promise<string>} The computed shasum
 	 */
-	getFileShasum(fileName: string, options?: { algorithm?: string, encoding?: "latin1" | "hex" | "base64" }): Promise<string>;
+	getFileShasum(
+		fileName: string,
+		options?: { algorithm?: string; encoding?: "latin1" | "hex" | "base64" }
+	): Promise<string>;
 
 	// shell.js wrappers
 	/**
-	 * @param (string) options Options, can be undefined or a combination of "-r" (recursive) and "-f" (force)
-	 * @param (string[]) files files and direcories to delete
+	 * @param {string} options Options, can be undefined or a combination of "-r" (recursive) and "-f" (force)
+	 * @param {string[]} files files and direcories to delete
 	 */
 	rm(options: string, ...files: string[]): void;
 
@@ -576,7 +622,10 @@ interface IErrors {
 	failWithoutHelp(opts: IFailOptions, ...args: any[]): never;
 	failWithHelp(formatStr: string, ...args: any[]): never;
 	failWithHelp(opts: IFailOptions, ...args: any[]): never;
-	beginCommand(action: () => Promise<boolean>, printCommandHelp: () => Promise<void>): Promise<boolean>;
+	beginCommand(
+		action: () => Promise<boolean>,
+		printCommandHelp: () => Promise<void>
+	): Promise<boolean>;
 	verifyHeap(message: string): void;
 	printCallStack: boolean;
 }
@@ -593,7 +642,6 @@ interface IFailOptions {
  * Describes error raised when making http requests.
  */
 interface IHttpRequestError extends Error {
-
 	/**
 	 * Defines if the error is caused by the proxy requiring authentication.
 	 */
@@ -615,7 +663,7 @@ declare const enum ErrorCodes {
 	UNHANDLED_REJECTION_FAILURE = 131,
 	DELETED_KILL_FILE = 132,
 	TESTS_INIT_REQUIRED = 133,
-	ALL_DEVICES_DISCONNECTED = 134
+	ALL_DEVICES_DISCONNECTED = 134,
 }
 
 interface IFutureDispatcher {
@@ -639,12 +687,37 @@ interface IQueue<T> {
 }
 
 interface IChildProcess extends NodeJS.EventEmitter {
-	exec(command: string, options?: any, execOptions?: IExecOptions): Promise<any>;
+	exec(
+		command: string,
+		options?: any,
+		execOptions?: IExecOptions
+	): Promise<any>;
 	execFile<T>(command: string, args: string[]): Promise<T>;
-	spawn(command: string, args?: string[], options?: any): any; // it returns child_process.ChildProcess you can safely cast to it
-	spawnFromEvent(command: string, args: string[], event: string, options?: any, spawnFromEventOptions?: ISpawnFromEventOptions): Promise<ISpawnResult>;
-	trySpawnFromCloseEvent(command: string, args: string[], options?: any, spawnFromEventOptions?: ISpawnFromEventOptions): Promise<ISpawnResult>;
-	tryExecuteApplication(command: string, args: string[], event: string, errorMessage: string, condition?: (childProcess: any) => boolean): Promise<any>;
+	spawn(
+		command: string,
+		args?: string[],
+		options?: any
+	): child_process.ChildProcess; // it returns child_process.ChildProcess you can safely cast to it
+	spawnFromEvent(
+		command: string,
+		args: string[],
+		event: string,
+		options?: any,
+		spawnFromEventOptions?: ISpawnFromEventOptions
+	): Promise<ISpawnResult>;
+	trySpawnFromCloseEvent(
+		command: string,
+		args: string[],
+		options?: any,
+		spawnFromEventOptions?: ISpawnFromEventOptions
+	): Promise<ISpawnResult>;
+	tryExecuteApplication(
+		command: string,
+		args: string[],
+		event: string,
+		errorMessage: string,
+		condition?: (childProcess: any) => boolean
+	): Promise<any>;
 	/**
 	 * This is a special case of the child_process.spawn() functionality for spawning Node.js processes.
 	 * In addition to having all the methods in a normal ChildProcess instance, the returned object has a communication channel built-in.
@@ -654,7 +727,19 @@ interface IChildProcess extends NodeJS.EventEmitter {
 	 * @param {string} options Object
 	 * @return {child_process} ChildProcess object.
 	 */
-	fork(modulePath: string, args?: string[], options?: { cwd?: string, env?: any, execPath?: string, execArgv?: string[], silent?: boolean, uid?: number, gid?: number }): any;
+	fork(
+		modulePath: string,
+		args?: string[],
+		options?: {
+			cwd?: string;
+			env?: any;
+			execPath?: string;
+			execArgv?: string[];
+			silent?: boolean;
+			uid?: number;
+			gid?: number;
+		}
+	): any;
 }
 
 interface IExecOptions {
@@ -671,7 +756,7 @@ interface ISpawnFromEventOptions {
 	throwError: boolean;
 	emitOptions?: {
 		eventName: string;
-	},
+	};
 	timeout?: number;
 }
 
@@ -685,14 +770,18 @@ interface IProjectHelper extends IProjectDir {
 }
 
 interface IDictionary<T> {
-	[key: string]: T
+	[key: string]: T;
 }
 
 interface IAnalyticsService {
 	checkConsent(): Promise<void>;
 	trackException(exception: any, message: string): Promise<void>;
 	setStatus(settingName: string, enabled: boolean): Promise<void>;
-	getStatusMessage(settingName: string, jsonFormat: boolean, readableSettingName: string): Promise<string>;
+	getStatusMessage(
+		settingName: string,
+		jsonFormat: boolean,
+		readableSettingName: string
+	): Promise<string>;
 	isEnabled(settingName: string): Promise<boolean>;
 	finishTracking(): Promise<void>;
 
@@ -701,7 +790,9 @@ interface IAnalyticsService {
 	 * @param {{ acceptTrackFeatureUsage: boolean }} settings Object containing information about user's answer.
 	 * @return {Promise<void>}
 	 */
-	trackAcceptFeatureUsage(settings: { acceptTrackFeatureUsage: boolean }): Promise<void>;
+	trackAcceptFeatureUsage(settings: {
+		acceptTrackFeatureUsage: boolean;
+	}): Promise<void>;
 
 	/**
 	 * Tracks data to Google Analytics project.
@@ -720,7 +811,7 @@ interface IAnalyticsService {
 	/**
 	 * Tracks preview's app data to Google Analytics project.
 	 */
-	trackPreviewAppData(platform: string, projectDir: string): Promise<void>
+	trackPreviewAppData(platform: string, projectDir: string): Promise<void>;
 
 	/**
 	 * Defines if the instance should be disposed.
@@ -731,11 +822,11 @@ interface IAnalyticsService {
 }
 
 interface IAllowEmpty {
-	allowEmpty?: boolean
+	allowEmpty?: boolean;
 }
 
 interface IPrompterOptions extends IAllowEmpty {
-	defaultAction?: () => string
+	defaultAction?: () => string;
 }
 
 interface IAnalyticsSettingsService {
@@ -804,7 +895,6 @@ interface IPlaygroundInfo {
 }
 
 interface IAutoCompletionService {
-
 	/**
 	 * Enables command line autocompletion by creating a `.<cliname>rc` file and sourcing it in all profiles (.bash_profile, .bashrc, etc.).
 	 * @returns {Promise<void>}
@@ -832,8 +922,14 @@ interface IAutoCompletionService {
 
 interface IHooksService {
 	hookArgsName: string;
-	executeBeforeHooks(commandName: string, hookArguments?: IDictionary<any>): Promise<void>;
-	executeAfterHooks(commandName: string, hookArguments?: IDictionary<any>): Promise<void>;
+	executeBeforeHooks(
+		commandName: string,
+		hookArguments?: IDictionary<any>
+	): Promise<void>;
+	executeAfterHooks(
+		commandName: string,
+		hookArguments?: IDictionary<any>
+	): Promise<void>;
 }
 
 interface IHook {
@@ -859,7 +955,10 @@ interface IRejectUnauthorized {
 /**
  * Proxy settings required for http request.
  */
-interface IProxySettings extends IRejectUnauthorized, ICredentials, IProxySettingsBase {
+interface IProxySettings
+	extends IRejectUnauthorized,
+		ICredentials,
+		IProxySettingsBase {
 	/**
 	 * Hostname of the machine used for proxy.
 	 */
@@ -896,7 +995,7 @@ interface IProxyLibSettings extends IRejectUnauthorized, ICredentials {
 interface IProxyService {
 	/**
 	 * Caches proxy data.
-	 * @param cacheData {IProxyLibSettings} Data to be cached.
+	 * @param {IProxyLibSettings} settings Data to be cached.
 	 * @returns {Promise<void>} The cache.
 	 */
 	setCache(settings: IProxyLibSettings): Promise<void>;
@@ -917,7 +1016,7 @@ interface IProxyService {
 	 * Gets info about the proxy that can be printed and shown to the user.
 	 * @returns {Promise<string>} Info about the proxy.
 	 */
-	getInfo(): Promise<string>
+	getInfo(): Promise<string>;
 }
 
 interface IQrCodeGenerator {
@@ -948,14 +1047,14 @@ interface IHelpService {
 
 	/**
 	 * Finds the html help for specified command and opens it in the browser.
-	 * @param {IComandData} commandData Data describing searched command - name and arguments.
+	 * @param {ICommandData} commandData Data describing searched command - name and arguments.
 	 * @returns {Promise<void>}
 	 */
 	openHelpForCommandInBrowser(commandData: ICommandData): Promise<void>;
 
 	/**
 	 * Shows command line help for specified command.
-	 * @param {string} commandName The name of the command for which to show the help.
+	 * @param {string} commandData The name of the command for which to show the help.
 	 * @returns {Promise<void>}
 	 */
 	showCommandLineHelp(commandData: ICommandData): Promise<void>;
@@ -995,11 +1094,13 @@ interface ISystemWarning {
 }
 
 interface ISysInfo {
-	getSysInfo(config?: NativeScriptDoctor.ISysInfoConfig): Promise<NativeScriptDoctor.ISysInfoData>;
+	getSysInfo(
+		config?: NativeScriptDoctor.ISysInfoConfig
+	): Promise<NativeScriptDoctor.ISysInfoData>;
 	/**
- 	 * Returns the currently installed version of Xcode.
- 	 * @return {Promise<string>} Returns the currently installed version of Xcode or null if Xcode is not installed or executed on Linux or Windows.
- 	 */
+	 * Returns the currently installed version of Xcode.
+	 * @return {Promise<string>} Returns the currently installed version of Xcode or null if Xcode is not installed or executed on Linux or Windows.
+	 */
 	getXcodeVersion(): Promise<string>;
 	/**
 	 * Returns the currently installed Java path based on JAVA_HOME and PATH..
@@ -1012,9 +1113,9 @@ interface ISysInfo {
 	 */
 	getCocoaPodsVersion(): Promise<string>;
 	/**
- 	 * Returns the currently installed Java compiler version.
- 	 * @return {Promise<string>} The currently installed Java compiler version.
- 	 */
+	 * Returns the currently installed Java compiler version.
+	 * @return {Promise<string>} The currently installed Java compiler version.
+	 */
 	getJavaCompilerVersion(): Promise<string>;
 
 	/**
@@ -1066,32 +1167,37 @@ interface IHostInfo {
 	getMacOSVersion(): Promise<string>;
 }
 
+// tslint:disable-next-line:interface-name
 interface GenericFunction<T> extends Function {
 	(...args: any[]): T;
 }
 
-interface Function {
-	$inject: {
-		args: string[];
-		name: string;
-	};
-}
+declare global {
+	// tslint:disable-next-line:interface-name
+	interface Function {
+		$inject: {
+			args: string[];
+			name: string;
+		};
+	}
 
-/**
- * Extends Nodejs' Error interface.
- * The native interface already has name and message properties
- */
-interface Error {
 	/**
-	 * Error's stack trace
-	 * @type {string}
+	 * Extends Nodejs' Error interface.
+	 * The native interface already has name and message properties
 	 */
-	stack?: string;
-	/**
-	 * Error's code - could be a string ('ENOENT'), as well as a number (127)
-	 * @type {string|number}
-	 */
-	code?: string | number;
+	// tslint:disable-next-line:interface-name
+	interface Error {
+		/**
+		 * Error's stack trace
+		 * @type {string}
+		 */
+		stack?: string;
+		/**
+		 * Error's code - could be a string ('ENOENT'), as well as a number (127)
+		 * @type {string|number}
+		 */
+		code?: string | number;
+	}
 }
 
 interface IRelease {
@@ -1201,18 +1307,29 @@ interface IDoctorService {
 	 * @param configOptions: defines if the result should be tracked by Analytics
 	 * @returns {Promise<void>}
 	 */
-	printWarnings(configOptions?: { trackResult?: boolean, projectDir?: string, runtimeVersion?: string, options?: IOptions, forceCheck?: boolean }): Promise<void>;
+	printWarnings(configOptions?: {
+		trackResult?: boolean;
+		projectDir?: string;
+		runtimeVersion?: string;
+		options?: IOptions;
+		forceCheck?: boolean;
+	}): Promise<void>;
 	/**
 	 * Runs the setup script on host machine
 	 * @returns {Promise<ISpawnResult>}
-	*/
+	 */
 	runSetupScript(): Promise<ISpawnResult>;
 	/**
 	 * Checks if the envrironment is properly configured and it is possible to execute local builds
-	 * @param platform @optional The current platform
 	 * @returns {Promise<boolean>} true if the environment is properly configured for local builds
+	 * @param {object} configuration
 	 */
-	canExecuteLocalBuild(configuration?: { platform?: string, projectDir?: string, runtimeVersion?: string, forceCheck?: boolean }): Promise<boolean>;
+	canExecuteLocalBuild(configuration?: {
+		platform?: string;
+		projectDir?: string;
+		runtimeVersion?: string;
+		forceCheck?: boolean;
+	}): Promise<boolean>;
 
 	/**
 	 * Checks and notifies users for deprecated short imports in their applications.
@@ -1245,8 +1362,8 @@ interface IUserSettingsService extends IJsonFileSettingsService {
 }
 
 /**
- *	Used for interaction with various resources located in a resources folder.
- *	@interface
+ * Used for interaction with various resources located in a resources folder.
+ * @interface
  */
 interface IResourceLoader {
 	/**
@@ -1334,25 +1451,45 @@ interface IProjectFilesManager {
 	/**
 	 * Enumerates all files and directories from the specified project files path.
 	 */
-	getProjectFiles(projectFilesPath: string, excludedProjectDirsAndFiles?: string[], filter?: (filePath: string, stat: IFsStats) => boolean, opts?: any): string[];
+	getProjectFiles(
+		projectFilesPath: string,
+		excludedProjectDirsAndFiles?: string[],
+		filter?: (filePath: string, stat: IFsStats) => boolean,
+		opts?: any
+	): string[];
 	/**
 	 * Checks if the file is excluded
 	 */
-	isFileExcluded(filePath: string, excludedProjectDirsAndFiles?: string[]): boolean;
+	isFileExcluded(
+		filePath: string,
+		excludedProjectDirsAndFiles?: string[]
+	): boolean;
 	/**
 	 * Returns an object that maps every local file path to device file path
 	 * If projectFiles parameter is not specified enumerates the files from the specified projectFilesPath
 	 */
-	createLocalToDevicePaths(deviceAppData: Mobile.IDeviceAppData, projectFilesPath: string, files: string[], excludedProjectDirsAndFiles: string[], projectFilesConfig?: IProjectFilesConfig): Promise<Mobile.ILocalToDevicePathData[]>;
+	createLocalToDevicePaths(
+		deviceAppData: Mobile.IDeviceAppData,
+		projectFilesPath: string,
+		files: string[],
+		excludedProjectDirsAndFiles: string[],
+		projectFilesConfig?: IProjectFilesConfig
+	): Promise<Mobile.ILocalToDevicePathData[]>;
 
 	/**
 	 * Handle platform specific files.
 	 * @param {string} directoryPath Directory from which to start looking for platform specific files. All subdirectories will be included.
 	 * @param {string} platform Mobile platform - only platform specific files for this platform will be included.
+	 * @param {IProjectFilesConfig} projectFilesConfig
 	 * @param {string[]} excludedDirs Directories which should be skipped.
 	 * @returns {void}
 	 */
-	processPlatformSpecificFiles(directoryPath: string, platform: string, projectFilesConfig?: IProjectFilesConfig, excludedDirs?: string[]): void;
+	processPlatformSpecificFiles(
+		directoryPath: string,
+		platform: string,
+		projectFilesConfig?: IProjectFilesConfig,
+		excludedDirs?: string[]
+	): void;
 }
 
 interface IProjectFilesProvider {
@@ -1363,7 +1500,12 @@ interface IProjectFilesProvider {
 	/**
 	 * Performs local file path mapping
 	 */
-	mapFilePath(filePath: string, platform: string, projectData: any, projectFilesConfig?: IProjectFilesConfig): string;
+	mapFilePath(
+		filePath: string,
+		platform: string,
+		projectData: any,
+		projectFilesConfig?: IProjectFilesConfig
+	): string;
 
 	/**
 	 * Returns information about file in the project, that includes file's name on device after removing platform or configuration from the name.
@@ -1372,13 +1514,21 @@ interface IProjectFilesProvider {
 	 * @param  {IProjectFilesConfig} projectFilesConfig configuration for additional parsing
 	 * @return {IProjectFileInfo}
 	 */
-	getProjectFileInfo(filePath: string, platform: string, projectFilesConfig: IProjectFilesConfig): IProjectFileInfo;
+	getProjectFileInfo(
+		filePath: string,
+		platform: string,
+		projectFilesConfig: IProjectFilesConfig
+	): IProjectFileInfo;
 	/**
 	 * Parses file by removing platform or configuration from its name.
 	 * @param {string} filePath Path to the project file.
+	 * @param {IProjectFilesConfig} projectFilesConfig
 	 * @return {string} Parsed file name or original file name in case it does not have platform/configuration in the filename.
 	 */
-	getPreparedFilePath(filePath: string, projectFilesConfig: IProjectFilesConfig): string;
+	getPreparedFilePath(
+		filePath: string,
+		projectFilesConfig: IProjectFilesConfig
+	): string;
 }
 
 /**
@@ -1452,7 +1602,6 @@ interface IWaitForPortListenData {
  * Wrapper for net module of Node.js.
  */
 interface INet {
-
 	/**
 	 * Get free port on your local machine.
 	 * @return {Promise<number>} The port.
@@ -1462,7 +1611,7 @@ interface INet {
 	/**
 	 * Returns the first available port in the provided range.
 	 * @param {number} startPort the first port to check.
-	 * @param {number} @optional endPort the last port to check. The default value is 65534.
+	 * @param {number} endPort the last port to check. The default value is 65534.
 	 * @return {Promise<number>} returns the first available prot in the given range.
 	 */
 	getAvailablePortInRange(startPort: number, endPort?: number): Promise<number>;
@@ -1479,7 +1628,9 @@ interface INet {
 	 * @param {IWaitForPortListenData} waitForPortListenData Data describing port, timeout and interval.
 	 * @returns {boolean} true in case port is in LISTEN state, false otherwise.
 	 */
-	waitForPortToListen(waitForPortListenData: IWaitForPortListenData): Promise<boolean>;
+	waitForPortToListen(
+		waitForPortListenData: IWaitForPortListenData
+	): Promise<boolean>;
 }
 
 interface IDependencyInformation {
@@ -1534,6 +1685,7 @@ interface IDeferPromise<T> extends IPromiseActions<T> {
 /**
  * Describes service used for interaction with Notification Center
  */
+// tslint:disable-next-line:interface-name
 interface IiOSNotificationService {
 	/**
 	 * Posts a notification and waits for a response.
@@ -1542,27 +1694,35 @@ interface IiOSNotificationService {
 	 * @param {number} timeout Timeout in seconds.
 	 * @return {Promise<string>} The response.
 	 */
-	awaitNotification(deviceIdentifier: string, socket: number, timeout: number): Promise<string>;
+	awaitNotification(
+		deviceIdentifier: string,
+		socket: number,
+		timeout: number
+	): Promise<string>;
 
 	/**
 	 * Posts a notification.
 	 * @param {string} deviceIdentifier Device's identifier.
 	 * @param {string} notification The xml value of the Name key of the notification to be post.
-	 * @param {string} @optional commandType The xml value of the Command key of the notification to be post.
+	 * @param {string} commandType The xml value of the Command key of the notification to be post.
 	 * @return {Promise<number>} A socket which can be queried for a response.
 	 */
-	postNotification(deviceIdentifier: string, notification: string, commandType?: string): Promise<number>;
+	postNotification(
+		deviceIdentifier: string,
+		notification: string,
+		commandType?: string
+	): Promise<number>;
 }
 
-declare module "stringify-package" {
-	function stringifyPackage(data: any, indent: any, newline: string): string
-	export = stringifyPackage
-}
+// declare module "stringify-package" {
+// 	function stringifyPackage(data: any, indent: any, newline: string): string
+// 	export = stringifyPackage
+// }
 
-declare module "detect-newline" {
-	function detectNewline(data: string): string | null;
-	export = detectNewline
-}
+// declare module "detect-newline" {
+// 	function detectNewline(data: string): string | null;
+// 	export = detectNewline
+// }
 
 /**
  * Describes information for application.

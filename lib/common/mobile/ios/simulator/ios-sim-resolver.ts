@@ -1,4 +1,5 @@
 import * as path from "path";
+import { injector } from "../../../yok";
 
 export class IOSSimResolver implements Mobile.IiOSSimResolver {
 	private static iOSSimName = "ios-sim-portable";
@@ -14,8 +15,12 @@ export class IOSSimResolver implements Mobile.IiOSSimResolver {
 	}
 
 	public get iOSSimPath(): string {
-		return path.join(require.resolve(IOSSimResolver.iOSSimName), "..", IOSSimResolver.iOSStandaloneExecutableName);
+		return path.join(
+			require.resolve(IOSSimResolver.iOSSimName),
+			"..",
+			IOSSimResolver.iOSStandaloneExecutableName
+		);
 	}
 }
 
-$injector.register("iOSSimResolver", IOSSimResolver);
+injector.register("iOSSimResolver", IOSSimResolver);

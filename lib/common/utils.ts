@@ -1,6 +1,9 @@
+import { IOptions } from "../declarations";
+import { IUtils } from "./declarations";
+import { injector } from "./yok";
+
 export class Utils implements IUtils {
-	constructor(private $options: IOptions,
-		private $logger: ILogger) { }
+	constructor(private $options: IOptions, private $logger: ILogger) {}
 
 	public getParsedTimeout(defaultTimeout: number): number {
 		let timeout = defaultTimeout;
@@ -9,7 +12,11 @@ export class Utils implements IUtils {
 			if (!isNaN(parsedValue) && parsedValue >= 0) {
 				timeout = parsedValue;
 			} else {
-				this.$logger.warn("Specify timeout in a number of seconds to wait. Default value: " + timeout + " seconds will be used.");
+				this.$logger.warn(
+					"Specify timeout in a number of seconds to wait. Default value: " +
+						timeout +
+						" seconds will be used."
+				);
 			}
 		}
 
@@ -21,4 +28,4 @@ export class Utils implements IUtils {
 		return timeout * 1000;
 	}
 }
-$injector.register("utils", Utils);
+injector.register("utils", Utils);

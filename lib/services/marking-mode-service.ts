@@ -1,74 +1,70 @@
-import * as helpers from "../common/helpers";
-import * as path from "path";
 import { EOL } from "os";
-import { PACKAGE_JSON_FILE_NAME, LoggerConfigData } from "../constants";
+import { LoggerConfigData, PlatformTypes } from "../constants";
+import {
+	IProjectConfigService,
+	IProjectDataService,
+} from "../definitions/project";
+import { injector } from "../common/yok";
+import { IProjectHelper } from "../common/declarations";
+import semver = require("semver/preload");
 
 const enum MarkingMode {
 	None = "none",
-	Full = "full"
+	Full = "full",
 }
 
 const MARKING_MODE_PROP = "markingMode";
-const MARKING_MODE_FULL_DEPRECATION_MSG = `With the upcoming NativeScript 7.0 the "${MARKING_MODE_PROP}:${MarkingMode.None}" will become the only marking mode supported by the Android Runtime.`;
-const MARKING_MODE_NONE_CONFIRM_MSG = `Do you want to switch your app to the recommended "${MARKING_MODE_PROP}:${MarkingMode.None}"?
-More info about the reasons for this change can be found in the link below:
-https://www.nativescript.org/blog/markingmode-none-is-official-boost-android-performance-while-avoiding-memory-issues`;
+const MARKING_MODE_FULL_DEPRECATION_MSG = `In NativeScript 7.0 "${MARKING_MODE_PROP}:${MarkingMode.Full}" is no longer supported.`;
 
 export class MarkingModeService implements IMarkingModeService {
-
-	constructor(private $fs: IFileSystem,
+	constructor(
 		private $logger: ILogger,
-		private $projectDataService: IProjectDataService,
-		private $prompter: IPrompter
-	) {
-	}
+		private $projectConfigService: IProjectConfigService,
+		private $projectHelper: IProjectHelper,
+		private $projectDataService: IProjectDataService
+	) {}
 
-	public async handleMarkingModeFullDeprecation(options: IMarkingModeFullDeprecationOptions): Promise<void> {
-		const { projectDir, skipWarnings, forceSwitch } = options;
-		const projectData = this.$projectDataService.getProjectData(projectDir);
-		const innerPackageJsonPath = path.join(projectData.getAppDirectoryPath(projectDir), PACKAGE_JSON_FILE_NAME);
-		if (!this.$fs.exists(innerPackageJsonPath)) {
-			return;
-		}
+	public async handleMarkingModeFullDeprecation(
+		options: IMarkingModeFullDeprecationOptions
+	): Promise<void> {
+		const markingModeValue = this.$projectConfigService.getValue(
+			"android.markingMode"
+		);
 
-		const innerPackageJson = this.$fs.readJson(innerPackageJsonPath);
-		let markingModeValue = (innerPackageJson && innerPackageJson.android
-			&& typeof (innerPackageJson.android[MARKING_MODE_PROP]) === "string" && innerPackageJson.android[MARKING_MODE_PROP]) || "";
+		const { skipWarnings, forceSwitch } = options;
 
 		if (forceSwitch) {
-			this.setMarkingMode(innerPackageJsonPath, innerPackageJson, MarkingMode.None);
+			await this.setMarkingMode(MarkingMode.None);
 			return;
 		}
 
-		if (!markingModeValue && helpers.isInteractive()) {
-			this.$logger.info();
-			this.$logger.printMarkdown(`
-__Improve your app by switching to "${MARKING_MODE_PROP}:${MarkingMode.None}".__
+		if (!skipWarnings && markingModeValue?.toLowerCase() !== MarkingMode.None) {
+			// only warn if runtime is less than 7.0.0-rc.5 - where the default has been changed to None
+			// if version is null - we are about to add the latest runtime, so no need to warn
+			const { version } = this.$projectDataService.getRuntimePackage(
+				this.$projectHelper.projectDir,
+				PlatformTypes.android
+			);
+			const isMarkingModeFullDefault =
+				version && semver.lt(version, "7.0.0-rc.5");
 
-\`${MARKING_MODE_FULL_DEPRECATION_MSG}\``);
-			const hasSwitched = await this.$prompter.confirm(MARKING_MODE_NONE_CONFIRM_MSG, () => true);
-
-			markingModeValue = hasSwitched ? MarkingMode.None : MarkingMode.Full;
-			this.setMarkingMode(innerPackageJsonPath, innerPackageJson, markingModeValue);
-		}
-
-		if (!skipWarnings && markingModeValue.toLowerCase() !== MarkingMode.None) {
-			this.showMarkingModeFullWarning();
+			if (isMarkingModeFullDefault) {
+				this.showMarkingModeFullWarning();
+			}
 		}
 	}
 
-	private setMarkingMode(packagePath: string, packageValue: any, newMode: string) {
-		packageValue = packageValue || {};
-		packageValue.android = packageValue.android || {};
-		packageValue.android[MARKING_MODE_PROP] = newMode;
-		this.$fs.writeJson(packagePath, packageValue);
+	private async setMarkingMode(newMode: string) {
+		await this.$projectConfigService.setValue("android.markingMode", newMode);
 	}
 
 	private showMarkingModeFullWarning() {
-		const markingModeFullWarning = `You are using the deprecated "${MARKING_MODE_PROP}:${MarkingMode.Full}".${EOL}${EOL}${MARKING_MODE_FULL_DEPRECATION_MSG}${EOL}${EOL}You should update your marking mode by executing 'tns update --markingMode'.`;
+		const markingModeFullWarning = `You are using the deprecated "${MARKING_MODE_PROP}:${MarkingMode.Full}".${EOL}${EOL}${MARKING_MODE_FULL_DEPRECATION_MSG}${EOL}${EOL}You should update your marking mode by executing 'ns update --markingMode'.`;
 
-		this.$logger.warn(markingModeFullWarning, { [LoggerConfigData.wrapMessageWithBorders]: true });
+		this.$logger.warn(markingModeFullWarning, {
+			[LoggerConfigData.wrapMessageWithBorders]: true,
+		});
 	}
 }
 
-$injector.register("markingModeService", MarkingModeService);
+injector.register("markingModeService", MarkingModeService);

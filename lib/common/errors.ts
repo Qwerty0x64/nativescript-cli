@@ -1,8 +1,12 @@
 import * as util from "util";
 import * as path from "path";
+import * as _ from "lodash";
 import { SourceMapConsumer } from "source-map";
 import { isInteractive } from "./helpers";
 import { deprecated } from "./decorators";
+import { ErrorCodes, IErrors, IFailOptions } from "./declarations";
+import { IInjector } from "./definitions/yok";
+import { injector } from "./yok";
 
 // we need this to overwrite .stack property (read-only in Error)
 function Exception() {
@@ -11,7 +15,7 @@ function Exception() {
 
 Exception.prototype = new Error();
 
-function resolveCallStack(error: Error): string {
+async function resolveCallStack(error: Error): Promise<string> {
 	const stackLines: string[] = error.stack.split("\n");
 	const parsed = _.map(stackLines, (line: string): any => {
 		let match = line.match(/^\s*at ([^(]*) \((.*?):([0-9]+):([0-9]+)\)$/);
@@ -30,32 +34,50 @@ function resolveCallStack(error: Error): string {
 
 	const fs = require("fs");
 
-	const remapped = _.map(parsed, (parsedLine) => {
-		if (_.isString(parsedLine)) {
-			return parsedLine;
-		}
+	const remapped = await Promise.all(
+		_.map(parsed, async (parsedLine) => {
+			if (_.isString(parsedLine)) {
+				return parsedLine;
+			}
 
-		const functionName = parsedLine[1];
-		const fileName = parsedLine[2];
-		const line = +parsedLine[3];
-		const column = +parsedLine[4];
+			const functionName = parsedLine[1];
+			const fileName = parsedLine[2];
+			const line = +parsedLine[3];
+			const column = +parsedLine[4];
 
-		const mapFileName = fileName + ".map";
-		if (!fs.existsSync(mapFileName)) {
-			return parsedLine.input;
-		}
+			const mapFileName = fileName + ".map";
+			if (!fs.existsSync(mapFileName)) {
+				return parsedLine.input;
+			}
 
-		const mapData = JSON.parse(fs.readFileSync(mapFileName).toString());
+			const mapData = JSON.parse(fs.readFileSync(mapFileName).toString());
 
-		const consumer = new SourceMapConsumer(mapData);
-		const sourcePos = consumer.originalPositionFor({ line: line, column: column });
-		if (sourcePos && sourcePos.source) {
-			const source = path.join(path.dirname(fileName), sourcePos.source);
-			return util.format("    at %s (%s:%s:%s)", functionName, source, sourcePos.line, sourcePos.column);
-		}
+			return await SourceMapConsumer.with(mapData, null, (consumer) => {
+				const sourcePos = consumer.originalPositionFor({
+					line: line,
+					column: column,
+				});
+				if (sourcePos && sourcePos.source) {
+					const source = path.join(path.dirname(fileName), sourcePos.source);
+					return util.format(
+						"    at %s (%s:%s:%s)",
+						functionName,
+						source,
+						sourcePos.line,
+						sourcePos.column
+					);
+				}
 
-		return util.format("    at %s (%s:%s:%s)", functionName, fileName, line, column);
-	});
+				return util.format(
+					"    at %s (%s:%s:%s)",
+					functionName,
+					fileName,
+					line,
+					column
+				);
+			});
+		})
+	);
 
 	let outputMessage = remapped.join("\n");
 
@@ -67,13 +89,15 @@ function resolveCallStack(error: Error): string {
 	return outputMessage;
 }
 
-export function installUncaughtExceptionListener(actionOnException?: () => void): void {
+export function installUncaughtExceptionListener(
+	actionOnException?: () => void
+): void {
 	const handler = async (err: Error) => {
 		try {
 			let callstack = err.stack;
 			if (callstack) {
 				try {
-					callstack = resolveCallStack(err);
+					callstack = await resolveCallStack(err);
 				} catch (err) {
 					console.error("Error while resolving callStack:", err);
 				}
@@ -81,12 +105,11 @@ export function installUncaughtExceptionListener(actionOnException?: () => void)
 
 			console.error(callstack || err.toString());
 
-			await tryTrackException(err, $injector);
+			await tryTrackException(err, injector);
 
 			if (actionOnException) {
 				actionOnException();
 			}
-
 		} catch (err) {
 			// In case the handler throws error and we do not catch it, we'll go in infinite loop of unhandled rejections.
 			// We cannot do anything here as even `console.error` may fail. So just exit the process.
@@ -98,10 +121,13 @@ export function installUncaughtExceptionListener(actionOnException?: () => void)
 	process.on("unhandledRejection", handler);
 }
 
-async function tryTrackException(error: Error, injector: IInjector): Promise<void> {
+async function tryTrackException(
+	error: Error,
+	localInjector: IInjector
+): Promise<void> {
 	let disableAnalytics: boolean;
 	try {
-		disableAnalytics = injector.resolve("staticConfig").disableAnalytics;
+		disableAnalytics = localInjector.resolve("staticConfig").disableAnalytics;
 	} catch (err) {
 		// We should get here only in our unit tests.
 		disableAnalytics = true;
@@ -109,7 +135,7 @@ async function tryTrackException(error: Error, injector: IInjector): Promise<voi
 
 	if (!disableAnalytics) {
 		try {
-			const analyticsService = injector.resolve("analyticsService");
+			const analyticsService = localInjector.resolve("analyticsService");
 			await analyticsService.trackException(error, error.message);
 		} catch (e) {
 			// Do not replace with logger due to cyclic dependency
@@ -119,8 +145,7 @@ async function tryTrackException(error: Error, injector: IInjector): Promise<voi
 }
 
 export class Errors implements IErrors {
-	constructor(private $injector: IInjector) {
-	}
+	constructor(private $injector: IInjector) {}
 
 	public printCallStack: boolean = false;
 
@@ -130,11 +155,17 @@ export class Errors implements IErrors {
 	}
 
 	@deprecated("Use `fail` instead.")
-	public failWithoutHelp(optsOrFormatStr: string | IFailOptions, ...args: any[]): never {
+	public failWithoutHelp(
+		optsOrFormatStr: string | IFailOptions,
+		...args: any[]
+	): never {
 		return this.fail(optsOrFormatStr, ...args);
 	}
 
-	public failWithHelp(optsOrFormatStr: string | IFailOptions, ...args: any[]): never {
+	public failWithHelp(
+		optsOrFormatStr: string | IFailOptions,
+		...args: any[]
+	): never {
 		const opts = this.getFailOptions(optsOrFormatStr);
 
 		return this.failWithOptions(opts, true, ...args);
@@ -149,19 +180,29 @@ export class Errors implements IErrors {
 		return opts;
 	}
 
-	private failWithOptions(opts: IFailOptions, suggestCommandHelp: boolean, ...args: any[]): never {
+	private failWithOptions(
+		opts: IFailOptions,
+		suggestCommandHelp: boolean,
+		...args: any[]
+	): never {
 		const argsArray = args || [];
 		const exception: any = new (<any>Exception)();
 		exception.name = opts.name || "Exception";
-		exception.message = util.format.apply(null, [opts.formatStr].concat(argsArray));
+		exception.message = util.format.apply(
+			null,
+			[opts.formatStr].concat(argsArray)
+		);
 		try {
 			const $messagesService = this.$injector.resolve("messagesService");
-			exception.message = $messagesService.getMessage.apply($messagesService, [opts.formatStr].concat(argsArray));
+			exception.message = $messagesService.getMessage.apply(
+				$messagesService,
+				[opts.formatStr].concat(argsArray)
+			);
 		} catch (err) {
 			// Ignore
 		}
 
-		exception.stack = (new Error(exception.message)).stack;
+		exception.stack = new Error(exception.message).stack;
 		exception.errorCode = opts.errorCode || ErrorCodes.UNKNOWN;
 		exception.suggestCommandHelp = suggestCommandHelp;
 		exception.proxyAuthenticationRequired = !!opts.proxyAuthenticationRequired;
@@ -171,14 +212,24 @@ export class Errors implements IErrors {
 		throw exception;
 	}
 
-	public async beginCommand(action: () => Promise<boolean>, printCommandHelpSuggestion: () => Promise<void>): Promise<boolean> {
+	public async beginCommand(
+		action: () => Promise<boolean>,
+		printCommandHelpSuggestion: () => Promise<void>
+	): Promise<boolean> {
 		try {
 			return await action();
 		} catch (ex) {
 			const logger = this.$injector.resolve("logger");
 			const loggerLevel: string = logger.getLevel().toUpperCase();
-			const printCallStack = this.printCallStack || loggerLevel === "TRACE" || loggerLevel === "DEBUG";
-			const message = printCallStack ? resolveCallStack(ex) : isInteractive() ? `\x1B[31;1m${ex.message}\x1B[0m` : ex.message;
+			const printCallStack =
+				this.printCallStack ||
+				loggerLevel === "TRACE" ||
+				loggerLevel === "DEBUG";
+			const message = printCallStack
+				? await resolveCallStack(ex)
+				: isInteractive()
+				? `\x1B[31;1m${ex.message}\x1B[0m`
+				: ex.message;
 
 			if (ex.printOnStdout) {
 				logger.info(message);
@@ -191,7 +242,9 @@ export class Errors implements IErrors {
 			}
 
 			await tryTrackException(ex, this.$injector);
-			process.exit(_.isNumber(ex.errorCode) ? ex.errorCode : ErrorCodes.UNKNOWN);
+			process.exit(
+				_.isNumber(ex.errorCode) ? ex.errorCode : ErrorCodes.UNKNOWN
+			);
 		}
 	}
 
@@ -203,5 +256,4 @@ export class Errors implements IErrors {
 		}
 	}
 }
-
-$injector.register("errors", Errors);
+injector.register("errors", Errors);

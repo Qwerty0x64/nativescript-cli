@@ -1,18 +1,29 @@
 import { DeviceLogProviderBase } from "./device-log-provider-base";
 import { DEVICE_LOG_EVENT_NAME } from "../constants";
 import { LoggerConfigData } from "../../constants";
+import { injector } from "../yok";
 
 export class DeviceLogProvider extends DeviceLogProviderBase {
-	constructor(protected $logFilter: Mobile.ILogFilter,
+	constructor(
+		protected $logFilter: Mobile.ILogFilter,
 		protected $logger: ILogger,
-		protected $logSourceMapService: Mobile.ILogSourceMapService) {
+		protected $logSourceMapService: Mobile.ILogSourceMapService
+	) {
 		super($logFilter, $logger, $logSourceMapService);
 	}
 
-	public logData(lineText: string, platform: string, deviceIdentifier: string): void {
+	public logData(
+		lineText: string,
+		platform: string,
+		deviceIdentifier: string
+	): void {
 		const loggingOptions = this.getDeviceLogOptionsForDevice(deviceIdentifier);
 		let data = this.$logFilter.filterData(platform, lineText, loggingOptions);
-		data = this.$logSourceMapService.replaceWithOriginalFileLocations(platform, data, loggingOptions);
+		data = this.$logSourceMapService.replaceWithOriginalFileLocations(
+			platform,
+			data,
+			loggingOptions
+		);
 		if (data) {
 			this.logDataCore(data);
 			this.emit(DEVICE_LOG_EVENT_NAME, lineText, deviceIdentifier, platform);
@@ -27,4 +38,4 @@ export class DeviceLogProvider extends DeviceLogProviderBase {
 		this.$logger.info(data, { [LoggerConfigData.skipNewLine]: true });
 	}
 }
-$injector.register("deviceLogProvider", DeviceLogProvider);
+injector.register("deviceLogProvider", DeviceLogProvider);

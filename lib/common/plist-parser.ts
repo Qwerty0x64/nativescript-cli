@@ -1,4 +1,6 @@
 import * as simplePlist from "simple-plist";
+import { IPlistParser } from "./declarations";
+import { injector } from "./yok";
 
 export class PlistParser implements IPlistParser {
 	public parseFile(plistFilePath: string): Promise<any> {
@@ -17,4 +19,4 @@ export class PlistParser implements IPlistParser {
 		return simplePlist.readFileSync(plistFilePath);
 	}
 }
-$injector.register("plistParser", PlistParser);
+injector.register("plistParser", PlistParser);

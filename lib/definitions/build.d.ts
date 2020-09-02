@@ -1,3 +1,12 @@
+import { IHasAndroidBundle, IApplicationPackage } from "../declarations";
+import { IProjectData } from "./project";
+import {
+	IValidBuildOutputData,
+	IPlatformData,
+	IBuildOutputOptions,
+	IBuildInfo,
+} from "./platform";
+
 interface IBuildData extends IPrepareData {
 	device?: string;
 	emulator?: boolean;
@@ -17,8 +26,10 @@ interface IiOSBuildData extends IBuildData {
 	iCloudContainerEnvironment: string;
 }
 
-interface IAndroidBuildData extends IBuildData, IAndroidSigningData, IHasAndroidBundle {
-}
+interface IAndroidBuildData
+	extends IBuildData,
+		IAndroidSigningData,
+		IHasAndroidBundle {}
 
 interface IAndroidSigningData {
 	keyStoreAlias: string;
@@ -39,14 +50,37 @@ interface IBuildDataService {
 }
 
 interface IBuildArtefactsService {
-	getAllAppPackages(buildOutputPath: string, validBuildOutputData: IValidBuildOutputData): IApplicationPackage[];
-	getLatestAppPackagePath(platformData: IPlatformData, buildOutputOptions: IBuildOutputOptions): Promise<string>;
-	copyLatestAppPackage(targetPath: string, platformData: IPlatformData, buildOutputOptions: IBuildOutputOptions): void;
+	getAllAppPackages(
+		buildOutputPath: string,
+		validBuildOutputData: IValidBuildOutputData
+	): IApplicationPackage[];
+	getLatestAppPackagePath(
+		platformData: IPlatformData,
+		buildOutputOptions: IBuildOutputOptions
+	): Promise<string>;
+	copyLatestAppPackage(
+		targetPath: string,
+		platformData: IPlatformData,
+		buildOutputOptions: IBuildOutputOptions
+	): void;
 }
 
 interface IBuildInfoFileService {
-	getLocalBuildInfo(platformData: IPlatformData, buildData: IBuildData): IBuildInfo;
-	getDeviceBuildInfo(device: Mobile.IDevice, projectData: IProjectData): Promise<IBuildInfo>;
-	saveLocalBuildInfo(platformData: IPlatformData, buildInfoFileDirname: string): void;
-	saveDeviceBuildInfo(device: Mobile.IDevice, projectData: IProjectData, outputFilePath: string): Promise<void>;
+	getLocalBuildInfo(
+		platformData: IPlatformData,
+		buildData: IBuildData
+	): IBuildInfo;
+	getDeviceBuildInfo(
+		device: Mobile.IDevice,
+		projectData: IProjectData
+	): Promise<IBuildInfo>;
+	saveLocalBuildInfo(
+		platformData: IPlatformData,
+		buildInfoFileDirname: string
+	): void;
+	saveDeviceBuildInfo(
+		device: Mobile.IDevice,
+		projectData: IProjectData,
+		outputFilePath: string
+	): Promise<void>;
 }

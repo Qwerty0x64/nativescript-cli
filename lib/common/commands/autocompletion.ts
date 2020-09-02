@@ -1,10 +1,14 @@
 import * as helpers from "../helpers";
+import { ICommandParameter, ICommand } from "../definitions/commands";
+import { IAutoCompletionService } from "../declarations";
+import { injector } from "../yok";
 
 export class AutoCompleteCommand implements ICommand {
-	constructor(private $autoCompletionService: IAutoCompletionService,
+	constructor(
+		private $autoCompletionService: IAutoCompletionService,
 		private $logger: ILogger,
-		private $prompter: IPrompter) {
-	}
+		private $prompter: IPrompter
+	) {}
 
 	public disableAnalytics = true;
 	public allowedParameters: ICommandParameter[] = [];
@@ -19,10 +23,15 @@ export class AutoCompleteCommand implements ICommand {
 					this.$logger.info("Autocompletion is already enabled");
 				}
 			} else {
-				this.$logger.info("If you are using bash or zsh, you can enable command-line completion.");
+				this.$logger.info(
+					"If you are using bash or zsh, you can enable command-line completion."
+				);
 				const message = "Do you want to enable it now?";
 
-				const autoCompetionStatus = await this.$prompter.confirm(message, () => true);
+				const autoCompetionStatus = await this.$prompter.confirm(
+					message,
+					() => true
+				);
 				if (autoCompetionStatus) {
 					await this.$autoCompletionService.enableAutoCompletion();
 				} else {
@@ -33,12 +42,13 @@ export class AutoCompleteCommand implements ICommand {
 		}
 	}
 }
-$injector.registerCommand("autocomplete|*default", AutoCompleteCommand);
+injector.registerCommand("autocomplete|*default", AutoCompleteCommand);
 
 export class DisableAutoCompleteCommand implements ICommand {
-	constructor(private $autoCompletionService: IAutoCompletionService,
-		private $logger: ILogger) {
-	}
+	constructor(
+		private $autoCompletionService: IAutoCompletionService,
+		private $logger: ILogger
+	) {}
 
 	public disableAnalytics = true;
 	public allowedParameters: ICommandParameter[] = [];
@@ -51,11 +61,13 @@ export class DisableAutoCompleteCommand implements ICommand {
 		}
 	}
 }
-$injector.registerCommand("autocomplete|disable", DisableAutoCompleteCommand);
+injector.registerCommand("autocomplete|disable", DisableAutoCompleteCommand);
 
 export class EnableAutoCompleteCommand implements ICommand {
-	constructor(private $autoCompletionService: IAutoCompletionService,
-		private $logger: ILogger) { }
+	constructor(
+		private $autoCompletionService: IAutoCompletionService,
+		private $logger: ILogger
+	) {}
 
 	public disableAnalytics = true;
 	public allowedParameters: ICommandParameter[] = [];
@@ -68,11 +80,13 @@ export class EnableAutoCompleteCommand implements ICommand {
 		}
 	}
 }
-$injector.registerCommand("autocomplete|enable", EnableAutoCompleteCommand);
+injector.registerCommand("autocomplete|enable", EnableAutoCompleteCommand);
 
 export class AutoCompleteStatusCommand implements ICommand {
-	constructor(private $autoCompletionService: IAutoCompletionService,
-		private $logger: ILogger) { }
+	constructor(
+		private $autoCompletionService: IAutoCompletionService,
+		private $logger: ILogger
+	) {}
 
 	public disableAnalytics = true;
 	public allowedParameters: ICommandParameter[] = [];
@@ -85,4 +99,4 @@ export class AutoCompleteStatusCommand implements ICommand {
 		}
 	}
 }
-$injector.registerCommand("autocomplete|status", AutoCompleteStatusCommand);
+injector.registerCommand("autocomplete|status", AutoCompleteStatusCommand);

@@ -1,7 +1,10 @@
 import { assert } from "chai";
+import * as _ from "lodash";
 import { Yok } from "../../lib/common/yok";
 import { LoggerStub } from "../stubs";
 import { CompanyInsightsController } from "../../lib/controllers/company-insights-controller";
+import { IInjector } from "../../lib/common/definitions/yok";
+import { IProxySettings, Server } from "../../lib/common/declarations";
 
 describe("companyInsightsController", () => {
 	const insightsUrlEndpoint = "/api/insights?ipAddress=%s";
@@ -11,12 +14,9 @@ describe("companyInsightsController", () => {
 			name: "Progress",
 			country: "Bulgaria",
 			revenue: "123131",
-			industries: [
-				"Software",
-				"Software 2"
-			],
-			employeeCount: "500"
-		}
+			industries: ["Software", "Software 2"],
+			employeeCount: "500",
+		},
 	};
 
 	const defaultExpectedCompanyData: ICompanyData = {
@@ -24,7 +24,7 @@ describe("companyInsightsController", () => {
 		country: "Bulgaria",
 		revenue: "123131",
 		industries: "Software__Software 2",
-		employeeCount: "500"
+		employeeCount: "500",
 	};
 
 	let httpRequestCounter = 0;
@@ -35,19 +35,22 @@ describe("companyInsightsController", () => {
 	const createTestInjector = (): IInjector => {
 		const injector = new Yok();
 		injector.register("config", {
-			INSIGHTS_URL_ENDPOINT: insightsUrlEndpoint
+			INSIGHTS_URL_ENDPOINT: insightsUrlEndpoint,
 		});
 
 		injector.register("httpClient", {
-			httpRequest: async (options: any, proxySettings?: IProxySettings): Promise<any> => {
+			httpRequest: async (
+				options: any,
+				proxySettings?: IProxySettings
+			): Promise<any> => {
 				httpRequestCounter++;
 				return { body: JSON.stringify(httpRequestResult) };
-			}
+			},
 		});
 
 		injector.register("logger", LoggerStub);
 		injector.register("ipService", {
-			getCurrentIPv4Address: async (): Promise<string> => currentIp
+			getCurrentIPv4Address: async (): Promise<string> => currentIp,
 		});
 
 		injector.register("companyInsightsController", CompanyInsightsController);
@@ -59,13 +62,17 @@ describe("companyInsightsController", () => {
 		httpRequestCounter = 0;
 		httpRequestResult = defaultCompanyData;
 		testInjector = createTestInjector();
-		companyInsightsController = testInjector.resolve<ICompanyInsightsController>("companyInsightsController");
+		companyInsightsController = testInjector.resolve<
+			ICompanyInsightsController
+		>("companyInsightsController");
 	});
 
 	describe("getCompanyData", () => {
 		describe("returns null when", () => {
 			it("the http client fails to get data", async () => {
-				const httpClient = testInjector.resolve<Server.IHttpClient>("httpClient");
+				const httpClient = testInjector.resolve<Server.IHttpClient>(
+					"httpClient"
+				);
 				const errMsg = "custom error";
 				httpClient.httpRequest = async () => {
 					throw new Error(errMsg);
@@ -78,7 +85,9 @@ describe("companyInsightsController", () => {
 			});
 
 			it("the body of the response is not a valid JSON", async () => {
-				const httpClient = testInjector.resolve<Server.IHttpClient>("httpClient");
+				const httpClient = testInjector.resolve<Server.IHttpClient>(
+					"httpClient"
+				);
 				httpClient.httpRequest = async (): Promise<any> => {
 					return { body: "invalid JSON" };
 				};
@@ -86,63 +95,70 @@ describe("companyInsightsController", () => {
 				const companyData = await companyInsightsController.getCompanyData();
 				assert.isNull(companyData);
 				const logger = testInjector.resolve<LoggerStub>("logger");
-				assert.isTrue(logger.traceOutput.indexOf("SyntaxError: Unexpected token") !== -1);
+				assert.isTrue(
+					logger.traceOutput.indexOf("SyntaxError: Unexpected token") !== -1
+				);
 			});
 
 			it("response does not contain company property", async () => {
 				httpRequestResult = {
-					foo: "bar"
+					foo: "bar",
 				};
 
 				const companyData = await companyInsightsController.getCompanyData();
-				assert.deepEqual(companyData, null);
+				assert.deepStrictEqual(companyData, null);
 			});
 
 			it("unable to get current ip address", async () => {
 				const ipService = testInjector.resolve<IIPService>("ipService");
-				ipService.getCurrentIPv4Address = async (): Promise<string> => { throw new Error("Unable to get current ip addreess"); };
+				ipService.getCurrentIPv4Address = async (): Promise<string> => {
+					throw new Error("Unable to get current ip addreess");
+				};
 
 				const companyData = await companyInsightsController.getCompanyData();
-				assert.deepEqual(companyData, null);
-				assert.equal(httpRequestCounter, 0, "We should not have any http request");
+				assert.deepStrictEqual(companyData, null);
+				assert.equal(
+					httpRequestCounter,
+					0,
+					"We should not have any http request"
+				);
 			});
 		});
 
 		describe("returns correct data when", () => {
-				it("response contains company property", async () => {
-					const companyData = await companyInsightsController.getCompanyData();
-					assert.deepEqual(companyData, defaultExpectedCompanyData);
-				});
+			it("response contains company property", async () => {
+				const companyData = await companyInsightsController.getCompanyData();
+				assert.deepStrictEqual(companyData, defaultExpectedCompanyData);
+			});
 
-				it("response contains company property and industries in it are not populated", async () => {
-					httpRequestResult = {
-						company: {
-							name: "Progress",
-							country: "Bulgaria",
-							revenue: "123131",
-							employeeCount: "500"
-						}
-					};
-
-					const companyData = await companyInsightsController.getCompanyData();
-					assert.deepEqual(companyData, {
+			it("response contains company property and industries in it are not populated", async () => {
+				httpRequestResult = {
+					company: {
 						name: "Progress",
 						country: "Bulgaria",
 						revenue: "123131",
-						industries: null,
-						employeeCount: "500"
-					});
-				});
+						employeeCount: "500",
+					},
+				};
 
+				const companyData = await companyInsightsController.getCompanyData();
+				assert.deepStrictEqual(companyData, {
+					name: "Progress",
+					country: "Bulgaria",
+					revenue: "123131",
+					industries: null,
+					employeeCount: "500",
+				});
+			});
 		});
 
 		it("is called only once per process", async () => {
 			const companyData = await companyInsightsController.getCompanyData();
-			assert.deepEqual(companyData, defaultExpectedCompanyData);
+			assert.deepStrictEqual(companyData, defaultExpectedCompanyData);
 			assert.equal(httpRequestCounter, 1);
 
 			const companyDataSecondCall = await companyInsightsController.getCompanyData();
-			assert.deepEqual(companyDataSecondCall, defaultExpectedCompanyData);
+			assert.deepStrictEqual(companyDataSecondCall, defaultExpectedCompanyData);
 			assert.equal(httpRequestCounter, 1);
 		});
 	});

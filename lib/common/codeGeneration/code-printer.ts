@@ -1,5 +1,8 @@
+import * as _ from "lodash";
 import { EOL } from "os";
 import { CodeEntityType } from "./code-entity";
+import { CodeGeneration } from "./code-generation";
+import { injector } from "../yok";
 
 export class CodePrinter {
 	private static INDENT_CHAR = "\t";
@@ -7,7 +10,10 @@ export class CodePrinter {
 	private static START_BLOCK_CHAR = " {";
 	private static END_BLOCK_CHAR = "}";
 
-	public composeBlock(block: CodeGeneration.IBlock, indentSize?: number): string {
+	public composeBlock(
+		block: CodeGeneration.IBlock,
+		indentSize?: number
+	): string {
 		indentSize = indentSize === undefined ? 0 : indentSize;
 		let content = this.getIndentation(indentSize);
 
@@ -19,16 +25,22 @@ export class CodePrinter {
 
 		_.each(block.codeEntities, (codeEntity: CodeGeneration.ICodeEntity) => {
 			if (codeEntity.codeEntityType === CodeEntityType.Line) {
-				content += this.composeLine(<CodeGeneration.ILine>codeEntity, indentSize + 1);
+				content += this.composeLine(
+					<CodeGeneration.ILine>codeEntity,
+					indentSize + 1
+				);
 			} else if (codeEntity.codeEntityType === CodeEntityType.Block) {
-				content += this.composeBlock(<CodeGeneration.IBlock>codeEntity, indentSize + 1);
+				content += this.composeBlock(
+					<CodeGeneration.IBlock>codeEntity,
+					indentSize + 1
+				);
 			}
 		});
 
 		if (block.opener) {
 			content += this.getIndentation(indentSize);
 			content += CodePrinter.END_BLOCK_CHAR;
-			content += block.endingCharacter || '';
+			content += block.endingCharacter || "";
 			content += CodePrinter.NEW_LINE_CHAR;
 		}
 
@@ -47,4 +59,4 @@ export class CodePrinter {
 		return content;
 	}
 }
-$injector.register("swaggerCodePrinter", CodePrinter);
+injector.register("swaggerCodePrinter", CodePrinter);

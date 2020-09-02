@@ -1,3 +1,4 @@
+import { IDictionary, IDashedOption, ICommandOptions } from "../declarations";
 
 interface ICommand extends ICommandOptions {
 	execute(args: string[]): Promise<void>;
@@ -38,11 +39,11 @@ interface ISimilarCommand {
 	rating: number;
 }
 
-interface ICommandArgument { }
+interface ICommandArgument {}
 
 interface ICommandParameter {
 	mandatory: boolean;
-	errorMessage?: string
+	errorMessage?: string;
 	validate(value: string, errorMessage?: string): Promise<boolean>;
 }
 

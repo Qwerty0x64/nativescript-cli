@@ -1,3 +1,8 @@
+import { IWatchIgnoreListService } from "../declarations";
+import { IDictionary } from "../common/declarations";
+import * as _ from "lodash";
+import { injector } from "../common/yok";
+
 export class WatchIgnoreListService implements IWatchIgnoreListService {
 	private ignoreMap: IDictionary<boolean> = {};
 
@@ -13,4 +18,4 @@ export class WatchIgnoreListService implements IWatchIgnoreListService {
 		return !!this.ignoreMap[filePath];
 	}
 }
-$injector.register("watchIgnoreListService", WatchIgnoreListService);
+injector.register("watchIgnoreListService", WatchIgnoreListService);

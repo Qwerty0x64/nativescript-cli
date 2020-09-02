@@ -1,7 +1,9 @@
 import { AndroidBuildData, IOSBuildData } from "../data/build-data";
+import { IBuildDataService } from "../definitions/build";
+import { injector } from "../common/yok";
 
 export class BuildDataService implements IBuildDataService {
-	constructor(private $mobileHelper: Mobile.IMobileHelper) { }
+	constructor(private $mobileHelper: Mobile.IMobileHelper) {}
 
 	public getBuildData(projectDir: string, platform: string, data: any) {
 		if (this.$mobileHelper.isiOSPlatform(platform)) {
@@ -11,4 +13,4 @@ export class BuildDataService implements IBuildDataService {
 		}
 	}
 }
-$injector.register("buildDataService", BuildDataService);
+injector.register("buildDataService", BuildDataService);

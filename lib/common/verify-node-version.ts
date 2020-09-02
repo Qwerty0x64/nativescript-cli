@@ -1,5 +1,6 @@
-
 // This function must be separate to avoid dependencies on C++ modules - it must execute precisely when other functions cannot
+
+import { ISystemWarning } from "./declarations";
 
 // Use only ES5 code here - pure JavaScript can be executed with any Node.js version (even 0.10, 0.12).
 /* tslint:disable:no-var-keyword no-var-requires prefer-const*/
@@ -28,7 +29,7 @@ function getNodeVersionOpts(): INodeVersionOpts {
 		supportedVersionsRange: supportedVersionsRange,
 		cliName: cliName,
 		nodeVer: nodeVer,
-		deprecatedVersions: deprecatedVersions
+		deprecatedVersions: deprecatedVersions,
 	};
 }
 
@@ -41,9 +42,21 @@ export function verifyNodeVersion(): void {
 	// The colors module should not be assigned to variable because the lint task will fail for not used variable.
 	require("colors");
 
-	if (versionsCausingFailure.indexOf(nodeVer) !== -1 || !semver.valid(nodeVer) || semver.lt(nodeVer, minimumRequiredVersion)) {
-		console.error(util.format("%sNode.js '%s' is not supported. To be able to work with %s CLI, install any Node.js version in the following range: %s.%s",
-			os.EOL, nodeVer, cliName, supportedVersionsRange, os.EOL).red.bold);
+	if (
+		versionsCausingFailure.indexOf(nodeVer) !== -1 ||
+		!semver.valid(nodeVer) ||
+		semver.lt(nodeVer, minimumRequiredVersion)
+	) {
+		console.error(
+			util.format(
+				"%sNode.js '%s' is not supported. To be able to work with %s CLI, install any Node.js version in the following range: %s.%s",
+				os.EOL,
+				nodeVer,
+				cliName,
+				supportedVersionsRange,
+				os.EOL
+			).red.bold
+		);
 		process.exit(1);
 	}
 }
@@ -62,7 +75,11 @@ export function getNodeWarning(): ISystemWarning {
 		if (deprecatedVersions) {
 			deprecatedVersions.forEach(function (version) {
 				if (semver.satisfies(nodeVer, version)) {
-					warningMessage = "Support for Node.js " + version + " is deprecated and will be removed in one of the next releases of " + cliName +
+					warningMessage =
+						"Support for Node.js " +
+						version +
+						" is deprecated and will be removed in one of the next releases of " +
+						cliName +
 						". Please, upgrade to the latest Node.js LTS version. ";
 					return warningMessage;
 				}
@@ -72,14 +89,19 @@ export function getNodeWarning(): ISystemWarning {
 		if (!warningMessage) {
 			var checkSatisfied = semver.satisfies(nodeVer, supportedVersionsRange);
 			if (!checkSatisfied) {
-				warningMessage = "Support for Node.js " + nodeVer + " is not verified. " + cliName + " CLI might not install or run properly.";
+				warningMessage =
+					"Support for Node.js " +
+					nodeVer +
+					" is not verified. " +
+					cliName +
+					" CLI might not install or run properly.";
 			}
 		}
 
 		if (warningMessage) {
 			nodeWarn = {
 				message: warningMessage,
-				severity: SystemWarningsSeverity.medium
+				severity: SystemWarningsSeverity.medium,
 			};
 		}
 	}

@@ -1,8 +1,14 @@
+import { IAndroidBuildData } from "./build";
+import { ISpawnResult, ISpawnFromEventOptions } from "../common/declarations";
+
 interface IGradleCommandService {
-	executeCommand(gradleArgs: string[], options: IGradleCommandOptions): Promise<ISpawnResult>;
+	executeCommand(
+		gradleArgs: string[],
+		options: IGradleCommandOptions
+	): Promise<ISpawnResult>;
 }
 
-interface IGradleCommandOptions { 
+interface IGradleCommandOptions {
 	cwd: string;
 	message?: string;
 	stdio?: string;
@@ -10,8 +16,14 @@ interface IGradleCommandOptions {
 }
 
 interface IGradleBuildService {
-	buildProject(projectRoot: string, buildData: IAndroidBuildData): Promise<void>;
-	cleanProject(projectRoot: string, buildData: IAndroidBuildData): Promise<void>;
+	buildProject(
+		projectRoot: string,
+		buildData: IAndroidBuildData
+	): Promise<void>;
+	cleanProject(
+		projectRoot: string,
+		buildData: IAndroidBuildData
+	): Promise<void>;
 }
 
 interface IGradleBuildArgsService {

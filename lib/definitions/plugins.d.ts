@@ -1,10 +1,23 @@
+import { IProjectData } from "./project";
+import { IDependencyData } from "../declarations";
+import { IDictionary } from "../common/declarations";
+
 interface IPluginsService {
 	add(plugin: string, projectData: IProjectData): Promise<void>; // adds plugin by name, github url, local path and et.
 	remove(pluginName: string, projectData: IProjectData): Promise<void>; // removes plugin only by name
-	addToPackageJson(plugin: string, version: string, isDev: boolean, projectDir: string): void;
+	addToPackageJson(
+		plugin: string,
+		version: string,
+		isDev: boolean,
+		projectDir: string
+	): void;
 	removeFromPackageJson(plugin: string, projectDir: string): void;
 	getAllInstalledPlugins(projectData: IProjectData): Promise<IPluginData[]>;
-	getAllProductionPlugins(projectData: IProjectData, platform: string, dependencies?: IDependencyData[]): IPluginData[];
+	getAllProductionPlugins(
+		projectData: IProjectData,
+		platform: string,
+		dependencies?: IDependencyData[]
+	): IPluginData[];
 	ensureAllDependenciesAreInstalled(projectData: IProjectData): Promise<void>;
 
 	/**
@@ -12,8 +25,12 @@ interface IPluginsService {
 	 * @param {string} projectData Root directory of the project.
 	 * @returns {IPackageJsonDepedenciesResult}
 	 */
-	getDependenciesFromPackageJson(projectDir: string): IPackageJsonDepedenciesResult;
-	preparePluginNativeCode(preparePluginNativeCodeData: IPreparePluginNativeCodeData): Promise<void>;
+	getDependenciesFromPackageJson(
+		projectDir: string
+	): IPackageJsonDepedenciesResult;
+	preparePluginNativeCode(
+		preparePluginNativeCodeData: IPreparePluginNativeCodeData
+	): Promise<void>;
 	isNativeScriptPlugin(pluginPackageJsonPath: string): boolean;
 }
 
@@ -24,8 +41,8 @@ interface IPreparePluginNativeCodeData {
 }
 
 interface IPackageJsonDepedenciesResult {
-	dependencies: IBasePluginData[],
-	devDependencies?: IBasePluginData[]
+	dependencies: IBasePluginData[];
+	devDependencies?: IBasePluginData[];
 }
 
 interface IBasePluginData {

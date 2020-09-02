@@ -11,22 +11,105 @@ import { HostInfo } from "./../lib/common/host-info";
 import { DevicePlatformsConstants } from "./../lib/common/mobile/device-platforms-constants";
 import { PrepareData } from "../lib/data/prepare-data";
 import * as temp from "temp";
+import {
+	IPackageInstallationManager,
+	INpmInstallOptions,
+	INodePackageManager,
+	INpmInstallResultInfo,
+	INodePackageManagerInstallOptions,
+	INpmPackageNameParts,
+	INpmsResult,
+	IAndroidToolsInfoData,
+	IAndroidToolsInfo,
+	IAndroidBundleValidatorHelper,
+	IAndroidResourcesMigrationService,
+	IPerformanceService,
+} from "../lib/declarations";
+import {
+	INsConfig,
+	IProjectConfigService,
+	IProjectData,
+	IBuildConfig,
+	IValidatePlatformOutput,
+	IProjectDataService,
+	IAssetsStructure,
+	IAssetGroup,
+	IProjectTemplatesService,
+	ITemplateData,
+	IProjectConfigInformation,
+} from "../lib/definitions/project";
+import {
+	IPlatformData,
+	IBuildOutputOptions,
+	IPlatformsDataService,
+} from "../lib/definitions/platform";
+import { IPluginData, IBasePluginData } from "../lib/definitions/plugins";
+import {
+	IDeviceDebugService,
+	IDebugResultInfo,
+} from "../lib/definitions/debug";
+import { IBuildData } from "../lib/definitions/build";
+import {
+	IFileSystem,
+	IFsStats,
+	IDictionary,
+	IErrors,
+	IFailOptions,
+	IStringDictionary,
+	ISpawnResult,
+	IProjectDir,
+	IProjectHelper,
+	IHooksService,
+	IAllowEmpty,
+	IPrompterOptions,
+	IQrCodeImageData,
+	ISpawnFromEventOptions,
+	IAnalyticsService,
+	IProxySettings,
+	Server,
+} from "../lib/common/declarations";
+import {
+	IAndroidPluginBuildService,
+	IPluginBuildOptions,
+} from "../lib/definitions/android-plugin-migrator";
+import { IInjector } from "../lib/common/definitions/yok";
+import {
+	IAddedNativePlatform,
+	IPrepareInfo,
+	IProjectChangesInfo,
+} from "../lib/definitions/project-changes";
+import {
+	IEventActionData,
+	IGoogleAnalyticsData,
+} from "../lib/common/definitions/google-analytics";
+import * as _ from "lodash";
+import { SupportedConfigValues } from "../lib/tools/config-manipulation/config-transformer";
+
 temp.track();
 
 export class LoggerStub implements ILogger {
-	initialize(opts?: ILoggerOptions): void { }
-	initializeCliLogger(): void { }
-	getLevel(): string { return undefined; }
-	fatal(...args: string[]): void { }
-	error(...args: string[]): void { }
+	initialize(opts?: ILoggerOptions): void {}
+
+	initializeCliLogger(): void {}
+
+	getLevel(): string {
+		return undefined;
+	}
+
+	fatal(...args: string[]): void {}
+
+	error(...args: string[]): void {}
+
 	warn(...args: string[]): void {
 		this.warnOutput += util.format.apply(null, args) + "\n";
 	}
+
 	info(...args: string[]): void {
 		this.output += util.format.apply(null, args) + "\n";
 	}
 
-	debug(...args: string[]): void { }
+	debug(...args: string[]): void {}
+
 	trace(...args: string[]): void {
 		this.traceOutput += util.format.apply(null, args) + "\n";
 	}
@@ -39,23 +122,34 @@ export class LoggerStub implements ILogger {
 		return "";
 	}
 
-	printMarkdown(message: string): void { }
+	printMarkdown(message: string): void {}
 
-	write(...args: any[]): void { }
-	printInfoMessageOnSameLine(message: string): void { }
-	async printMsgWithTimeout(message: string, timeout: number): Promise<void> { }
-	printOnStderr(formatStr?: any, ...args: any[]): void { }
+	write(...args: any[]): void {}
 
-	isVerbose(): boolean { return false; }
+	printInfoMessageOnSameLine(message: string): void {}
+
+	async printMsgWithTimeout(message: string, timeout: number): Promise<void> {}
+
+	printOnStderr(formatStr?: any, ...args: any[]): void {}
+
+	isVerbose(): boolean {
+		return false;
+	}
 }
 
 export class FileSystemStub implements IFileSystem {
 	public fsStatCache: IDictionary<IFsStats> = {};
 	public deletedFiles: string[] = [];
+
 	deleteDirectorySafe(directory: string): void {
 		return this.deleteDirectory(directory);
 	}
-	async zipFiles(zipFile: string, files: string[], zipPathCallback: (path: string) => string): Promise<void> {
+
+	async zipFiles(
+		zipFile: string,
+		files: string[],
+		zipPathCallback: (path: string) => string
+	): Promise<void> {
 		return undefined;
 	}
 
@@ -113,7 +207,12 @@ export class FileSystemStub implements IFileSystem {
 		return undefined;
 	}
 
-	writeJson(filename: string, data: any, space?: string, encoding?: string): void {
+	writeJson(
+		filename: string,
+		data: any,
+		space?: string,
+		encoding?: string
+	): void {
 		return undefined;
 	}
 
@@ -121,13 +220,25 @@ export class FileSystemStub implements IFileSystem {
 		return undefined;
 	}
 
-	openFile(filename: string): void { }
+	openFile(filename: string): void {}
 
-	createReadStream(path: string, options?: { flags?: string; encoding?: string; fd?: number; mode?: number; bufferSize?: number }): any {
+	createReadStream(
+		path: string,
+		options?: {
+			flags?: string;
+			encoding?: string;
+			fd?: number;
+			mode?: number;
+			bufferSize?: number;
+		}
+	): any {
 		return undefined;
 	}
 
-	createWriteStream(path: string, options?: { flags?: string; encoding?: string; string?: string }): any {
+	createWriteStream(
+		path: string,
+		options?: { flags?: string; encoding?: string; string?: string }
+	): any {
 		return undefined;
 	}
 
@@ -142,7 +253,7 @@ export class FileSystemStub implements IFileSystem {
 	getFsStats(path: string): IFsStats {
 		if (!this.fsStatCache[path]) {
 			this.fsStatCache[path] = <any>{
-				ctime: this.getIncrementalDate()
+				ctime: this.getIncrementalDate(),
 			};
 		}
 
@@ -150,6 +261,7 @@ export class FileSystemStub implements IFileSystem {
 	}
 
 	private dateCounter = 0;
+
 	private getIncrementalDate(): Date {
 		const date = new Date();
 		date.setDate(date.getDate() + this.dateCounter);
@@ -174,13 +286,16 @@ export class FileSystemStub implements IFileSystem {
 		return undefined;
 	}
 
-	symlink(sourcePath: string, destinationPath: string): void { }
+	symlink(sourcePath: string, destinationPath: string): void {}
 
 	async setCurrentUserAsOwner(path: string, owner: string): Promise<void> {
 		return undefined;
 	}
 
-	enumerateFilesInDirectorySync(directoryPath: string, filterCallback?: (file: string, stat: IFsStats) => boolean): string[] {
+	enumerateFilesInDirectorySync(
+		directoryPath: string,
+		filterCallback?: (file: string, stat: IFsStats) => boolean
+	): string[] {
 		return [];
 	}
 
@@ -204,9 +319,9 @@ export class FileSystemStub implements IFileSystem {
 		// Mock
 	}
 
-	deleteEmptyParents(directory: string): void { }
+	deleteEmptyParents(directory: string): void {}
 
-	utimes(path: string, atime: Date, mtime: Date): void { }
+	utimes(path: string, atime: Date, mtime: Date): void {}
 
 	realpath(filePath: string): string {
 		return null;
@@ -229,7 +344,10 @@ export class ErrorsStub implements IErrors {
 		return this.fail(<any>opts, args);
 	}
 
-	async beginCommand(action: () => Promise<boolean>, printHelpCommand: () => Promise<void>): Promise<boolean> {
+	async beginCommand(
+		action: () => Promise<boolean>,
+		printHelpCommand: () => Promise<void>
+	): Promise<boolean> {
 		throw new Error("not supported");
 	}
 
@@ -237,19 +355,41 @@ export class ErrorsStub implements IErrors {
 		return action();
 	}
 
-	verifyHeap(message: string): void { }
+	verifyHeap(message: string): void {}
 
 	printCallStack: boolean = false;
 
-	validateArgs(client: string, knownOpts: any, shorthands: any): any { return null; }
-	validateYargsArguments(parsed: any, knownOpts: any, shorthands: any, clientName?: string): void { }
+	validateArgs(client: string, knownOpts: any, shorthands: any): any {
+		return null;
+	}
+
+	validateYargsArguments(
+		parsed: any,
+		knownOpts: any,
+		shorthands: any,
+		clientName?: string
+	): void {}
 }
 
-export class PackageInstallationManagerStub implements IPackageInstallationManager {
+export class PackageInstallationManagerStub
+	implements IPackageInstallationManager {
 	clearInspectorCache(): void {
 		return undefined;
 	}
-	async install(packageName: string, pathToSave?: string, options?: INpmInstallOptions): Promise<string> {
+
+	async install(
+		packageName: string,
+		pathToSave?: string,
+		options?: INpmInstallOptions
+	): Promise<string> {
+		return Promise.resolve("");
+	}
+
+	async uninstall(
+		packageName: string,
+		pathToSave?: string,
+		options?: INpmInstallOptions
+	): Promise<string> {
 		return Promise.resolve("");
 	}
 
@@ -269,7 +409,10 @@ export class PackageInstallationManagerStub implements IPackageInstallationManag
 		return Promise.resolve("");
 	}
 
-	async getInspectorFromCache(name: string, projectDir: string): Promise<string> {
+	async getInspectorFromCache(
+		name: string,
+		projectDir: string
+	): Promise<string> {
 		return Promise.resolve("");
 	}
 
@@ -277,23 +420,37 @@ export class PackageInstallationManagerStub implements IPackageInstallationManag
 		return "";
 	}
 
-	async getInstalledDependencyVersion(packageName: string, projectDir?: string): Promise<string> {
+	async getInstalledDependencyVersion(
+		packageName: string,
+		projectDir?: string
+	): Promise<string> {
 		return Promise.resolve("");
 	}
 
-	async getMaxSatisfyingVersionSafe(packageName: string, versionIdentifier: string): Promise<string> {
+	async getMaxSatisfyingVersionSafe(
+		packageName: string,
+		versionIdentifier: string
+	): Promise<string> {
 		return Promise.resolve(versionIdentifier);
 	}
 }
 
 export class NodePackageManagerStub implements INodePackageManager {
-	constructor() { }
+	constructor() {}
 
-	public async install(packageName: string, pathToSave: string, config: INodePackageManagerInstallOptions): Promise<INpmInstallResultInfo> {
+	public async install(
+		packageName: string,
+		pathToSave: string,
+		config: INodePackageManagerInstallOptions
+	): Promise<INpmInstallResultInfo> {
 		return null;
 	}
 
-	public async uninstall(packageName: string, config?: any, path?: string): Promise<string> {
+	public async uninstall(
+		packageName: string,
+		config?: any,
+		path?: string
+	): Promise<string> {
 		return "";
 	}
 
@@ -309,15 +466,21 @@ export class NodePackageManagerStub implements INodePackageManager {
 		return true;
 	}
 
-	public async getPackageNameParts(fullPackageName: string): Promise<INpmPackageNameParts> {
+	public async getPackageNameParts(
+		fullPackageName: string
+	): Promise<INpmPackageNameParts> {
 		return {
 			name: fullPackageName,
-			version: ""
+			version: "",
 		};
 	}
 
-	public async getPackageFullName(packageNameParts: INpmPackageNameParts): Promise<string> {
-		return packageNameParts.version ? `${packageNameParts.name}@${packageNameParts.version}` : packageNameParts.name;
+	public async getPackageFullName(
+		packageNameParts: INpmPackageNameParts
+	): Promise<string> {
+		return packageNameParts.version
+			? `${packageNameParts.name}@${packageNameParts.version}`
+			: packageNameParts.name;
 	}
 
 	public async searchNpms(keyword: string): Promise<INpmsResult> {
@@ -334,19 +497,27 @@ export class NodePackageManagerStub implements INodePackageManager {
 }
 
 export class ProjectDataStub implements IProjectData {
+	packageJsonData: any;
 	projectDir: string;
 	projectName: string;
 	webpackConfigPath: string;
+
 	get platformsDir(): string {
-		return this.platformsDirCache || (this.projectDir && join(this.projectDir, "platforms")) || "";
+		return (
+			this.platformsDirCache ||
+			(this.projectDir && join(this.projectDir, "platforms")) ||
+			""
+		);
 	}
+
 	set platformsDir(value) {
 		this.platformsDirCache = value;
 	}
+
 	projectFilePath: string;
 	projectIdentifiers: Mobile.IProjectIdentifier = {
 		android: "org.nativescirpt.myiOSApp",
-		ios: "org.nativescript.myProjectApp"
+		ios: "org.nativescript.myProjectApp",
 	};
 	projectId: string;
 	dependencies: any;
@@ -369,21 +540,30 @@ export class ProjectDataStub implements IProjectData {
 		this.projectDir = this.projectDir || projectDir;
 		this.projectIdentifiers = { android: "", ios: "" };
 		this.projectId = "";
+		this.projectName = "";
 	}
+
 	public initializeProjectDataFromContent(): void {
 		return;
 	}
+
 	public getAppResourcesDirectoryPath(projectDir?: string): string {
 		if (!projectDir) {
 			projectDir = this.projectDir;
 		}
 
 		// always return app/App_Resources
-		return join(projectDir, constants.APP_FOLDER_NAME, constants.APP_RESOURCES_FOLDER_NAME);
+		return join(
+			projectDir,
+			constants.APP_FOLDER_NAME,
+			constants.APP_RESOURCES_FOLDER_NAME
+		);
 	}
+
 	public getAppResourcesRelativeDirectoryPath(): string {
 		return "";
 	}
+
 	public getAppDirectoryPath(projectDir?: string): string {
 		if (!projectDir) {
 			projectDir = this.projectDir;
@@ -391,21 +571,85 @@ export class ProjectDataStub implements IProjectData {
 
 		return join(projectDir, "app") || "";
 	}
+
 	public getAppDirectoryRelativePath(): string {
-		return "";
+		return "app";
 	}
 }
 
-export class AndroidPluginBuildServiceStub implements IAndroidPluginBuildService {
+export class ProjectConfigServiceStub implements IProjectConfigService {
+	static initWithConfig(config: any) {
+		const projectConfigService = new ProjectConfigServiceStub();
+		projectConfigService.config = config;
+
+		return projectConfigService;
+	}
+
+	protected config: INsConfig;
+
+	setForceUsingNSConfig(force: boolean): boolean {
+		return false;
+	}
+
+	getValue(key: string): any {
+		return _.get(this.readConfig(), key);
+	}
+
+	setValue(key: string, value: SupportedConfigValues): any {
+		return _.set(this.readConfig(), key, value);
+	}
+
+	readConfig(projectDir?: string): INsConfig {
+		return this.config;
+	}
+
+	detectProjectConfigs(projectDir?: string): IProjectConfigInformation {
+		return {
+			hasTSConfig: true,
+			hasJSConfig: false,
+			hasNSConfig: false,
+			usingNSConfig: false,
+			TSConfigPath: "",
+			JSConfigPath: "",
+			NSConfigPath: "",
+		};
+	}
+
+	getDefaultTSConfig(appId: string): string {
+		return `import { NativeScriptConfig } from '@nativescript/core';
+
+    export default {
+      id: '${appId}',
+      appResourcesPath: 'App_Resources',
+      android: {
+        v8Flags: '--expose_gc',
+        markingMode: 'none'
+      }
+    } as NativeScriptConfig;`;
+	}
+
+	writeDefaultConfig(appId: string, projectDir?: string): void {}
+
+	writeLegacyNSConfigIfNeeded(
+		projectDir: string,
+		runtimePackage: IBasePluginData
+	): void {}
+}
+
+export class AndroidPluginBuildServiceStub
+	implements IAndroidPluginBuildService {
 	buildAar(options: IPluginBuildOptions): Promise<boolean> {
 		return Promise.resolve(true);
 	}
+
 	migrateIncludeGradle(options: IPluginBuildOptions): boolean {
 		return true;
 	}
 }
 
-export class PlatformProjectServiceStub extends EventEmitter implements IPlatformProjectService {
+export class PlatformProjectServiceStub
+	extends EventEmitter
+	implements IPlatformProjectService {
 	constructor(private platform: string) {
 		super();
 	}
@@ -413,39 +657,52 @@ export class PlatformProjectServiceStub extends EventEmitter implements IPlatfor
 	getPlatformData(projectData: IProjectData): IPlatformData {
 		return {
 			frameworkPackageName: `tns-${this.platform.toLowerCase()}`,
-			normalizedPlatformName: this.platform.toLowerCase() === "ios" ? "iOS" : "Android",
+			normalizedPlatformName:
+				this.platform.toLowerCase() === "ios" ? "iOS" : "Android",
 			platformNameLowerCase: this.platform.toLowerCase(),
 			platformProjectService: this,
 			projectRoot: "",
 			getBuildOutputPath: (buildConfig: IBuildConfig) => "",
-			getValidBuildOutputData: (buildOptions: IBuildOutputOptions) => ({ packageNames: [] }),
+			getValidBuildOutputData: (buildOptions: IBuildOutputOptions) => ({
+				packageNames: [],
+			}),
 			appDestinationDirectoryPath: "",
 			relativeToFrameworkConfigurationFilePath: "",
-			fastLivesyncFileExtensions: []
+			fastLivesyncFileExtensions: [],
 		};
 	}
 
 	getAppResourcesDestinationDirectoryPath(): string {
 		return "";
 	}
+
 	validateOptions(): Promise<boolean> {
 		return Promise.resolve(true);
 	}
+
 	validate(): Promise<IValidatePlatformOutput> {
 		return Promise.resolve(<IValidatePlatformOutput>{});
 	}
-	async createProject(projectRoot: string, frameworkDir: string): Promise<void> {
+
+	async createProject(
+		projectRoot: string,
+		frameworkDir: string
+	): Promise<void> {
 		return Promise.resolve();
 	}
+
 	async interpolateData(): Promise<void> {
 		return Promise.resolve();
 	}
+
 	interpolateConfigurationFile(): void {
 		return;
 	}
+
 	afterCreateProject(projectRoot: string): void {
 		return null;
 	}
+
 	prepareProject(): Promise<void> {
 		return Promise.resolve();
 	}
@@ -453,73 +710,106 @@ export class PlatformProjectServiceStub extends EventEmitter implements IPlatfor
 	async buildProject(projectRoot: string): Promise<void> {
 		return Promise.resolve();
 	}
+
 	async buildForDeploy(projectRoot: string): Promise<void> {
 		return Promise.resolve();
 	}
+
 	isPlatformPrepared(projectRoot: string): boolean {
 		return false;
 	}
-	async updatePlatform(currentVersion: string, newVersion: string, canUpdate: boolean): Promise<boolean> {
+
+	async updatePlatform(
+		currentVersion: string,
+		newVersion: string,
+		canUpdate: boolean
+	): Promise<boolean> {
 		return Promise.resolve(true);
 	}
-	prepareAppResources(projectData: IProjectData): void { }
+
+	prepareAppResources(projectData: IProjectData): void {}
 
 	async preparePluginNativeCode(pluginData: IPluginData): Promise<void> {
 		return Promise.resolve();
 	}
 
-	async removePluginNativeCode(pluginData: IPluginData): Promise<void> { }
+	async removePluginNativeCode(pluginData: IPluginData): Promise<void> {}
 
 	async handleNativeDependenciesChange(): Promise<void> {
 		return Promise.resolve();
 	}
+
 	async beforePrepareAllPlugins(): Promise<void> {
 		return Promise.resolve();
 	}
+
 	async cleanDeviceTempFolder(deviceIdentifier: string): Promise<void> {
 		return Promise.resolve();
 	}
+
 	async processConfigurationFilesFromAppResources(): Promise<void> {
 		return Promise.resolve();
 	}
+
 	ensureConfigurationFileInAppResources(): void {
 		return null;
 	}
+
 	async stopServices(): Promise<ISpawnResult> {
 		return Promise.resolve({ stderr: "", stdout: "", exitCode: 0 });
 	}
+
 	async cleanProject(projectRoot: string): Promise<void> {
 		return Promise.resolve();
 	}
-	async checkForChanges(changesInfo: IProjectChangesInfo, options: any, projectData: IProjectData): Promise<void> {
+
+	async checkForChanges(
+		changesInfo: IProjectChangesInfo,
+		options: any,
+		projectData: IProjectData
+	): Promise<void> {
 		// Nothing yet.
 	}
+
 	getFrameworkVersion(projectData: IProjectData): string {
 		return "";
 	}
-	getPluginPlatformsFolderPath(pluginData: IPluginData, platform: string): string {
+
+	getPluginPlatformsFolderPath(
+		pluginData: IPluginData,
+		platform: string
+	): string {
 		return "";
 	}
+
 	getDeploymentTarget(projectData: IProjectData): any {
 		return;
 	}
 }
 
-export class NativeProjectDataStub extends EventEmitter implements IPlatformsDataService {
+export class NativeProjectDataStub
+	extends EventEmitter
+	implements IPlatformsDataService {
 	public platformNames: string[];
 
-	public getPlatformData(platform: string, projectData: IProjectData): IPlatformData {
+	public getPlatformData(
+		platform: string,
+		projectData: IProjectData
+	): IPlatformData {
 		return {
 			frameworkPackageName: `tns-${platform.toLowerCase()}`,
 			platformProjectService: new PlatformProjectServiceStub(platform),
 			platformNameLowerCase: platform.toLowerCase(),
 			projectRoot: "",
-			normalizedPlatformName: platform.toLowerCase() === "ios" ? "iOS" : "Android",
+			normalizedPlatformName:
+				platform.toLowerCase() === "ios" ? "iOS" : "Android",
 			appDestinationDirectoryPath: "",
 			getBuildOutputPath: () => "",
-			getValidBuildOutputData: (buildOptions: IBuildOutputOptions) => ({ packageNames: [] }),
+			getValidBuildOutputData: (buildOptions: IBuildOutputOptions) => ({
+				packageNames: [],
+			}),
 			relativeToFrameworkConfigurationFilePath: "",
-			fastLivesyncFileExtensions: []
+			fastLivesyncFileExtensions: [],
 		};
 	}
 
@@ -528,18 +818,18 @@ export class NativeProjectDataStub extends EventEmitter implements IPlatformsDat
 	}
 }
 
-export class ProjectDataService implements IProjectDataService {
+export class ProjectDataServiceStub implements IProjectDataService {
 	getNSValue(propertyName: string): any {
 		return {};
 	}
 
-	setNSValue(key: string, value: any): void { }
+	setNSValue(key: string, value: any): void {}
 
-	removeNSProperty(propertyName: string): void { }
+	removeNSProperty(propertyName: string): void {}
 
-	removeNSConfigProperty(projectDir: string, propertyName: string): void { }
+	removeNSConfigProperty(projectDir: string, propertyName: string): void {}
 
-	removeDependency(dependencyName: string): void { }
+	removeDependency(dependencyName: string): void {}
 
 	getProjectData(projectDir: string): IProjectData {
 		const projectData = new ProjectDataStub();
@@ -564,12 +854,24 @@ export class ProjectDataService implements IProjectDataService {
 		return [];
 	}
 
-	getNSValueFromContent(): any { }
+	getRuntimePackage(
+		projectDir: string,
+		platform: constants.SupportedPlatform
+	): IBasePluginData {
+		return {
+			name: `@nativescript/${platform}`,
+			version: null,
+		};
+	}
+
+	getNSValueFromContent(): any {}
 }
 
 export class ProjectHelperStub implements IProjectHelper {
-	constructor(public projectHelperErrorMsg?: string, public customProjectDir?: string) {
-	}
+	constructor(
+		public projectHelperErrorMsg?: string,
+		public customProjectDir?: string
+	) {}
 
 	public get projectDir(): string {
 		if (this.projectHelperErrorMsg) {
@@ -592,16 +894,13 @@ export class ProjectTemplatesService implements IProjectTemplatesService {
 	async prepareTemplate(templateName: string): Promise<ITemplateData> {
 		return Promise.resolve(<any>{});
 	}
-
-	getTemplateVersion(templateName: string): Promise<string> {
-		return Promise.resolve(constants.TemplateVersions.v1);
-	}
 }
 
 export class HooksServiceStub implements IHooksService {
 	async executeBeforeHooks(commandName: string): Promise<void> {
 		return Promise.resolve();
 	}
+
 	async executeAfterHooks(commandName: string): Promise<void> {
 		return Promise.resolve();
 	}
@@ -616,7 +915,13 @@ export class PrompterStub implements IPrompter {
 	private questionChoices: IDictionary<any[]> = {};
 	private confirmQuestions: IDictionary<boolean> = {};
 
-	expect(options?: { strings?: IDictionary<string>, passwords?: IDictionary<string>, answers?: IDictionary<string>, questionChoices?: IDictionary<any[]>, confirmQuestions?: IDictionary<boolean> }) {
+	expect(options?: {
+		strings?: IDictionary<string>;
+		passwords?: IDictionary<string>;
+		answers?: IDictionary<string>;
+		questionChoices?: IDictionary<any[]>;
+		confirmQuestions?: IDictionary<boolean>;
+	}) {
 		if (options) {
 			this.strings = options.strings || this.strings;
 			this.passwords = options.passwords || this.passwords;
@@ -629,47 +934,83 @@ export class PrompterStub implements IPrompter {
 	async get(schemas: prompt.Question[]): Promise<any> {
 		throw unreachable();
 	}
+
 	async getPassword(message: string, options?: IAllowEmpty): Promise<string> {
-		chai.assert.ok(message in this.passwords, `PrompterStub didn't expect to give password for: ${message}`);
+		chai.assert.ok(
+			message in this.passwords,
+			`PrompterStub didn't expect to give password for: ${message}`
+		);
 		const result = this.passwords[message];
 		delete this.passwords[message];
 		return result;
 	}
-	async getString(message: string, options?: IPrompterOptions): Promise<string> {
-		chai.assert.ok(message in this.strings, `PrompterStub didn't expect to be asked for: ${message}`);
+
+	async getString(
+		message: string,
+		options?: IPrompterOptions
+	): Promise<string> {
+		chai.assert.ok(
+			message in this.strings,
+			`PrompterStub didn't expect to be asked for: ${message}`
+		);
 		const result = this.strings[message];
 		delete this.strings[message];
 		return result;
 	}
-	async promptForChoice(promptMessage: string, choices: any[]): Promise<string> {
+
+	async promptForChoice(
+		promptMessage: string,
+		choices: any[]
+	): Promise<string> {
 		throw unreachable();
 	}
-	async promptForDetailedChoice(question: string, choices: any[]): Promise<string> {
-		chai.assert.ok(question in this.answers, `PrompterStub didn't expect to be asked: ${question}`);
-		chai.assert.deepEqual(choices, this.questionChoices[question]);
+
+	async promptForDetailedChoice(
+		question: string,
+		choices: any[]
+	): Promise<string> {
+		chai.assert.ok(
+			question in this.answers,
+			`PrompterStub didn't expect to be asked: ${question}`
+		);
+		chai.assert.deepStrictEqual(choices, this.questionChoices[question]);
 		const result = this.answers[question];
 		delete this.answers[question];
 		return result;
 	}
-	async confirm(message: string, defaultAction?: () => boolean): Promise<boolean> {
-		chai.assert.ok(message in this.confirmQuestions, `PrompterStub didn't expect to be asked for: ${message}`);
+
+	async confirm(
+		message: string,
+		defaultAction?: () => boolean
+	): Promise<boolean> {
+		chai.assert.ok(
+			message in this.confirmQuestions,
+			`PrompterStub didn't expect to be asked for: ${message}`
+		);
 		const result = this.confirmQuestions[message];
 		delete this.confirmQuestions[message];
 		return result;
 	}
+
 	dispose(): void {
 		throw unreachable();
 	}
 
 	assert() {
 		for (const key in this.strings) {
-			throw unexpected(`PrompterStub was instructed to reply with "${this.strings[key]}" to a "${key}" question, but was never asked!`);
+			throw unexpected(
+				`PrompterStub was instructed to reply with "${this.strings[key]}" to a "${key}" question, but was never asked!`
+			);
 		}
 		for (const key in this.passwords) {
-			throw unexpected(`PrompterStub was instructed to reply with "${this.passwords[key]}" to a "${key}" password request, but was never asked!`);
+			throw unexpected(
+				`PrompterStub was instructed to reply with "${this.passwords[key]}" to a "${key}" password request, but was never asked!`
+			);
 		}
 		for (const key in this.confirmQuestions) {
-			throw unexpected(`PrompterStub was instructed to reply with "${this.confirmQuestions[key]}" to a "${key}" confirm question, but was never asked!`);
+			throw unexpected(
+				`PrompterStub was instructed to reply with "${this.confirmQuestions[key]}" to a "${key}" confirm question, but was never asked!`
+			);
 		}
 	}
 }
@@ -684,7 +1025,9 @@ function unexpected(msg: string): Error {
 	return err;
 }
 
-export class DebugServiceStub extends EventEmitter implements IDeviceDebugService {
+export class DebugServiceStub
+	extends EventEmitter
+	implements IDeviceDebugService {
 	public async debug(): Promise<IDebugResultInfo> {
 		return;
 	}
@@ -696,12 +1039,19 @@ export class DebugServiceStub extends EventEmitter implements IDeviceDebugServic
 	public platform: string;
 }
 
-export class LiveSyncServiceStub extends EventEmitter implements ILiveSyncService {
-	public async liveSyncToPreviewApp(data: IPreviewAppLiveSyncData): Promise<IQrCodeImageData> {
+export class LiveSyncServiceStub
+	extends EventEmitter
+	implements ILiveSyncService {
+	public async liveSyncToPreviewApp(
+		data: IPreviewAppLiveSyncData
+	): Promise<IQrCodeImageData> {
 		return;
 	}
 
-	public async liveSync(deviceDescriptors: ILiveSyncDeviceDescriptor[], liveSyncData: ILiveSyncInfo): Promise<void> {
+	public async liveSync(
+		deviceDescriptors: ILiveSyncDeviceDescriptor[],
+		liveSyncData: ILiveSyncInfo
+	): Promise<void> {
 		return;
 	}
 
@@ -709,7 +1059,9 @@ export class LiveSyncServiceStub extends EventEmitter implements ILiveSyncServic
 		return;
 	}
 
-	public getLiveSyncDeviceDescriptors(projectDir: string): ILiveSyncDeviceDescriptor[] {
+	public getLiveSyncDeviceDescriptors(
+		projectDir: string
+	): ILiveSyncDeviceDescriptor[] {
 		return [];
 	}
 }
@@ -724,15 +1076,23 @@ export class AndroidToolsInfoStub implements IAndroidToolsInfo {
 		return infoData;
 	}
 
-	public validateInfo(options?: { showWarningsAsErrors: boolean, validateTargetSdk: boolean }): boolean {
+	public validateInfo(options?: {
+		showWarningsAsErrors: boolean;
+		validateTargetSdk: boolean;
+	}): boolean {
 		return true;
 	}
 
-	public validateJavacVersion(installedJavaVersion: string, options?: { showWarningsAsErrors: boolean }): boolean {
+	public validateJavacVersion(
+		installedJavaVersion: string,
+		options?: { showWarningsAsErrors: boolean }
+	): boolean {
 		return true;
 	}
 
-	public async getPathToAndroidExecutable(options?: { showWarningsAsErrors: boolean }): Promise<string> {
+	public async getPathToAndroidExecutable(options?: {
+		showWarningsAsErrors: boolean;
+	}): Promise<string> {
 		return "";
 	}
 
@@ -740,11 +1100,15 @@ export class AndroidToolsInfoStub implements IAndroidToolsInfo {
 		return Promise.resolve("");
 	}
 
-	public validateAndroidHomeEnvVariable(options?: { showWarningsAsErrors: boolean }): boolean {
+	public validateAndroidHomeEnvVariable(options?: {
+		showWarningsAsErrors: boolean;
+	}): boolean {
 		return false;
 	}
 
-	public validateTargetSdk(options?: { showWarningsAsErrors: boolean }): boolean {
+	public validateTargetSdk(options?: {
+		showWarningsAsErrors: boolean;
+	}): boolean {
 		return true;
 	}
 }
@@ -756,7 +1120,11 @@ export class ChildProcessStub extends EventEmitter {
 	public lastCommand = "";
 	public lastCommandArgs: string[] = [];
 
-	public async exec(command: string, options?: any, execOptions?: any): Promise<any> {
+	public async exec(
+		command: string,
+		options?: any,
+		execOptions?: any
+	): Promise<any> {
 		this.execCount++;
 		this.lastCommand = command;
 		this.lastCommandArgs = command ? command.split(" ") : [];
@@ -770,7 +1138,13 @@ export class ChildProcessStub extends EventEmitter {
 		return null;
 	}
 
-	public async spawnFromEvent(command: string, args: string[], event: string, options?: any, spawnFromEventOptions?: ISpawnFromEventOptions): Promise<ISpawnResult> {
+	public async spawnFromEvent(
+		command: string,
+		args: string[],
+		event: string,
+		options?: any,
+		spawnFromEventOptions?: ISpawnFromEventOptions
+	): Promise<ISpawnResult> {
 		this.spawnFromEventCount++;
 		this.lastCommand = command;
 		this.lastCommandArgs = args;
@@ -779,7 +1153,11 @@ export class ChildProcessStub extends EventEmitter {
 }
 
 export class ProjectChangesService implements IProjectChangesService {
-	public async checkForChanges(platformData: IPlatformData, projectData: IProjectData, prepareData: PrepareData): Promise<IProjectChangesInfo> {
+	public async checkForChanges(
+		platformData: IPlatformData,
+		projectData: IProjectData,
+		prepareData: PrepareData
+	): Promise<IProjectChangesInfo> {
 		return <IProjectChangesInfo>{};
 	}
 
@@ -787,8 +1165,11 @@ export class ProjectChangesService implements IProjectChangesService {
 		return null;
 	}
 
-	public async savePrepareInfo(platformData: IPlatformData, projectData: IProjectData, prepareData: IPrepareData): Promise<void> {
-	}
+	public async savePrepareInfo(
+		platformData: IPlatformData,
+		projectData: IProjectData,
+		prepareData: IPrepareData
+	): Promise<void> {}
 
 	public getPrepareInfoFilePath(platformData: IPlatformData): string {
 		return "";
@@ -798,7 +1179,11 @@ export class ProjectChangesService implements IProjectChangesService {
 		return <IProjectChangesInfo>{};
 	}
 
-	public async setNativePlatformStatus(platformData: IPlatformData, projectData: IProjectData, addedPlatform: IAddedNativePlatform): Promise<void> {
+	public async setNativePlatformStatus(
+		platformData: IPlatformData,
+		projectData: IProjectData,
+		addedPlatform: IAddedNativePlatform
+	): Promise<void> {
 		return;
 	}
 }
@@ -810,10 +1195,17 @@ export class CommandsService implements ICommandsService {
 		return [];
 	}
 
-	public tryExecuteCommand(commandName: string, commandArguments: string[]): Promise<void> {
+	public tryExecuteCommand(
+		commandName: string,
+		commandArguments: string[]
+	): Promise<void> {
 		return Promise.resolve();
 	}
-	public executeCommandUnchecked(commandName: string, commandArguments: string[]): Promise<boolean> {
+
+	public executeCommandUnchecked(
+		commandName: string,
+		commandArguments: string[]
+	): Promise<boolean> {
 		return Promise.resolve(true);
 	}
 
@@ -822,22 +1214,27 @@ export class CommandsService implements ICommandsService {
 	}
 }
 
-export class AndroidResourcesMigrationServiceStub implements IAndroidResourcesMigrationService {
+export class AndroidResourcesMigrationServiceStub
+	implements IAndroidResourcesMigrationService {
 	canMigrate(platformString: string): boolean {
 		return true;
 	}
+
 	hasMigrated(appResourcesDir: string): boolean {
 		return false;
 	}
+
 	migrate(appResourcesDir: string): Promise<void> {
 		return Promise.resolve();
 	}
 }
 
-export class AndroidBundleValidatorHelper implements IAndroidBundleValidatorHelper {
+export class AndroidBundleValidatorHelper
+	implements IAndroidBundleValidatorHelper {
 	validateDeviceApiLevel(device: Mobile.IDevice, buildData: IBuildData): void {
 		return;
 	}
+
 	validateNoAab() {
 		return true;
 	}
@@ -848,59 +1245,123 @@ export class AndroidBundleValidatorHelper implements IAndroidBundleValidatorHelp
 }
 
 export class PerformanceService implements IPerformanceService {
-	now(): number { return 10; }
-	processExecutionData() { }
+	now(): number {
+		return 10;
+	}
+	processExecutionData() {}
 }
 
 export class PacoteServiceStub implements IPacoteService {
-	public async manifest(packageName: string, options?: IPacoteManifestOptions): Promise<any> {
+	public async manifest(
+		packageName: string,
+		options?: IPacoteManifestOptions
+	): Promise<any> {
 		return "";
 	}
-	public async extractPackage(packageName: string, destinationDirectory: string, options?: IPacoteExtractOptions): Promise<void> { }
+	public async extractPackage(
+		packageName: string,
+		destinationDirectory: string,
+		options?: IPacoteExtractOptions
+	): Promise<void> {}
 }
 
 class TerminalSpinnerStub {
 	public text: string;
-	public start(text?: string): ITerminalSpinner { return this; }
-	public stop(): ITerminalSpinner { return this; }
-	public succeed(text?: string): ITerminalSpinner { return this; }
-	public fail(text?: string): ITerminalSpinner { return this; }
-	public warn(text?: string): ITerminalSpinner { return this; }
-	public info(text?: string): ITerminalSpinner { return this; }
-	public clear(): ITerminalSpinner { return this; }
-	public render(): ITerminalSpinner { return this; }
-	public frame(): ITerminalSpinner { return this; }
+	public start(text?: string): ITerminalSpinner {
+		return this;
+	}
+	public stop(): ITerminalSpinner {
+		return this;
+	}
+	public succeed(text?: string): ITerminalSpinner {
+		return this;
+	}
+	public fail(text?: string): ITerminalSpinner {
+		return this;
+	}
+	public warn(text?: string): ITerminalSpinner {
+		return this;
+	}
+	public info(text?: string): ITerminalSpinner {
+		return this;
+	}
+	public clear(): ITerminalSpinner {
+		return this;
+	}
+	public render(): ITerminalSpinner {
+		return this;
+	}
+	public frame(): ITerminalSpinner {
+		return this;
+	}
 }
 
 export class TerminalSpinnerServiceStub implements ITerminalSpinnerService {
-	public createSpinner(spinnerOptions?: ITerminalSpinnerOptions): ITerminalSpinner {
+	public createSpinner(
+		spinnerOptions?: ITerminalSpinnerOptions
+	): ITerminalSpinner {
 		return new TerminalSpinnerStub();
 	}
-	public async execute<T>(spinnerOptions: ITerminalSpinnerOptions, action: () => Promise<T>): Promise<T> {
+	public async execute<T>(
+		spinnerOptions: ITerminalSpinnerOptions,
+		action: () => Promise<T>
+	): Promise<T> {
 		return null;
 	}
 }
 
 export class MarkingModeServiceStub implements IMarkingModeService {
-	handleMarkingModeFullDeprecation(options: IMarkingModeFullDeprecationOptions): Promise<void> {
+	handleMarkingModeFullDeprecation(
+		options: IMarkingModeFullDeprecationOptions
+	): Promise<void> {
 		return;
 	}
 }
 
 export class AnalyticsService implements IAnalyticsService {
-	async checkConsent(): Promise<void> { return; }
-	async trackFeature(featureName: string): Promise<void> { return; }
-	async trackException(exception: any, message: string): Promise<void> { return; }
-	async setStatus(settingName: string, enabled: boolean): Promise<void> { return; }
-	async getStatusMessage(settingName: string, jsonFormat: boolean, readableSettingName: string): Promise<string> { return "Fake message"; }
-	async isEnabled(settingName: string): Promise<boolean> { return false; }
-	async track(featureName: string, featureValue: string): Promise<void> { return; }
-	async trackEventActionInGoogleAnalytics(data: IEventActionData) { return Promise.resolve(); }
-	async trackInGoogleAnalytics(data: IGoogleAnalyticsData) { return Promise.resolve(); }
-	async trackAcceptFeatureUsage(settings: { acceptTrackFeatureUsage: boolean }) { return Promise.resolve(); }
-	async trackPreviewAppData() { return Promise.resolve(); }
-	async finishTracking() { return Promise.resolve(); }
-	setShouldDispose() { }
+	async checkConsent(): Promise<void> {
+		return;
+	}
+	async trackFeature(featureName: string): Promise<void> {
+		return;
+	}
+	async trackException(exception: any, message: string): Promise<void> {
+		return;
+	}
+	async setStatus(settingName: string, enabled: boolean): Promise<void> {
+		return;
+	}
+	async getStatusMessage(
+		settingName: string,
+		jsonFormat: boolean,
+		readableSettingName: string
+	): Promise<string> {
+		return "Fake message";
+	}
+	async isEnabled(settingName: string): Promise<boolean> {
+		return false;
+	}
+	async track(featureName: string, featureValue: string): Promise<void> {
+		return;
+	}
+	async trackEventActionInGoogleAnalytics(data: IEventActionData) {
+		return Promise.resolve();
+	}
+	async trackInGoogleAnalytics(data: IGoogleAnalyticsData) {
+		return Promise.resolve();
+	}
+	async trackAcceptFeatureUsage(settings: {
+		acceptTrackFeatureUsage: boolean;
+	}) {
+		return Promise.resolve();
+	}
+	async trackPreviewAppData() {
+		return Promise.resolve();
+	}
+	async finishTracking() {
+		return Promise.resolve();
+	}
+	setShouldDispose() {}
 }
 
 export class InjectorStub extends Yok implements IInjector {
@@ -915,31 +1376,40 @@ export class InjectorStub extends Yok implements IInjector {
 		this.register("config", {});
 		this.register("staticConfig", {});
 		this.register("hooksService", HooksServiceStub);
-		this.register('projectDataService', ProjectDataService);
-		this.register('devicePlatformsConstants', DevicePlatformsConstants);
-		this.register("androidResourcesMigrationService", AndroidResourcesMigrationServiceStub);
+		this.register("projectDataService", ProjectDataServiceStub);
+		this.register("devicePlatformsConstants", DevicePlatformsConstants);
+		this.register(
+			"androidResourcesMigrationService",
+			AndroidResourcesMigrationServiceStub
+		);
 		this.register("commandsService", CommandsService);
 		this.register("projectChangesService", ProjectChangesService);
-		this.register('childProcess', ChildProcessStub);
+		this.register("childProcess", ChildProcessStub);
 		this.register("liveSyncService", LiveSyncServiceStub);
 		this.register("prompter", PrompterStub);
-		this.register('platformsDataService', NativeProjectDataStub);
+		this.register("platformsDataService", NativeProjectDataStub);
 		this.register("androidPluginBuildService", AndroidPluginBuildServiceStub);
-		this.register('projectData', ProjectDataStub);
-		this.register('packageInstallationManager', PackageInstallationManagerStub);
-		this.register('packageInstallationManager', PackageInstallationManagerStub);
+		this.register("projectData", ProjectDataStub);
+		this.register("projectConfigService", ProjectConfigServiceStub);
+		this.register("packageInstallationManager", PackageInstallationManagerStub);
+		this.register("packageInstallationManager", PackageInstallationManagerStub);
 		this.register("markingModeService", MarkingModeServiceStub);
 		this.register("httpClient", {
-			httpRequest: async (options: any, proxySettings?: IProxySettings): Promise<Server.IResponse> => undefined
+			httpRequest: async (
+				options: any,
+				proxySettings?: IProxySettings
+			): Promise<Server.IResponse> => undefined,
 		});
 		this.register("pluginsService", {
 			add: async (): Promise<void> => undefined,
 			remove: async (): Promise<void> => undefined,
-			ensureAllDependenciesAreInstalled: () => { return Promise.resolve(); },
+			ensureAllDependenciesAreInstalled: () => {
+				return Promise.resolve();
+			},
 		});
 		this.register("devicesService", {
 			getDevice: (): Mobile.IDevice => undefined,
-			getDeviceByIdentifier: (): Mobile.IDevice => undefined
+			getDeviceByIdentifier: (): Mobile.IDevice => undefined,
 		});
 		this.register("terminalSpinnerService", TerminalSpinnerServiceStub);
 	}

@@ -1,23 +1,40 @@
 import * as path from "path";
 import { Configurations } from "../../common/constants";
+import { IGradleBuildArgsService } from "../../definitions/gradle";
+import { IAndroidToolsInfo } from "../../declarations";
+import { IAndroidBuildData } from "../../definitions/build";
+import { IHooksService, IAnalyticsService } from "../../common/declarations";
+import { injector } from "../../common/yok";
+import { IProjectData } from "../../definitions/project";
 
 export class GradleBuildArgsService implements IGradleBuildArgsService {
-	constructor(private $androidToolsInfo: IAndroidToolsInfo,
+	constructor(
+		private $androidToolsInfo: IAndroidToolsInfo,
 		private $hooksService: IHooksService,
 		private $analyticsService: IAnalyticsService,
 		private $staticConfig: Config.IStaticConfig,
-		private $logger: ILogger) { }
+		private $projectData: IProjectData,
+		private $logger: ILogger
+	) {}
 
-	public async getBuildTaskArgs(buildData: IAndroidBuildData): Promise<string[]> {
+	public async getBuildTaskArgs(
+		buildData: IAndroidBuildData
+	): Promise<string[]> {
 		const args = this.getBaseTaskArgs(buildData);
 		args.unshift(this.getBuildTaskName(buildData));
 
-		if (await this.$analyticsService.isEnabled(this.$staticConfig.TRACK_FEATURE_USAGE_SETTING_NAME)) {
+		if (
+			await this.$analyticsService.isEnabled(
+				this.$staticConfig.TRACK_FEATURE_USAGE_SETTING_NAME
+			)
+		) {
 			args.push("-PgatherAnalyticsData=true");
 		}
 
 		// allow modifying gradle args from a `before-build-task-args` hook
-		await this.$hooksService.executeBeforeHooks('build-task-args', { hookArgs: { args } });
+		await this.$hooksService.executeBeforeHooks("build-task-args", {
+			hookArgs: { args },
+		});
 
 		return args;
 	}
@@ -32,12 +49,20 @@ export class GradleBuildArgsService implements IGradleBuildArgsService {
 	private getBaseTaskArgs(buildData: IAndroidBuildData): string[] {
 		const args = this.getBuildLoggingArgs();
 
-		const toolsInfo = this.$androidToolsInfo.getToolsInfo({projectDir: buildData.projectDir});
+		const toolsInfo = this.$androidToolsInfo.getToolsInfo({
+			projectDir: buildData.projectDir,
+		});
+
+		// ensure we initialize project data
+		this.$projectData.initializeProjectData(buildData.projectDir);
+
 		args.push(
 			`-PcompileSdk=android-${toolsInfo.compileSdkVersion}`,
 			`-PtargetSdk=${toolsInfo.targetSdkVersion}`,
 			`-PbuildToolsVersion=${toolsInfo.buildToolsVersion}`,
-			`-PgenerateTypings=${toolsInfo.generateTypings}`
+			`-PgenerateTypings=${toolsInfo.generateTypings}`,
+			`-PappPath=${this.$projectData.getAppDirectoryPath()}`,
+			`-PappResourcesPath=${this.$projectData.getAppResourcesDirectoryPath()}`
 		);
 
 		if (buildData.release) {
@@ -68,9 +93,11 @@ export class GradleBuildArgsService implements IGradleBuildArgsService {
 
 	private getBuildTaskName(buildData: IAndroidBuildData): string {
 		const baseTaskName = buildData.androidBundle ? "bundle" : "assemble";
-		const buildTaskName = buildData.release ? `${baseTaskName}${Configurations.Release}` : `${baseTaskName}${Configurations.Debug}`;
+		const buildTaskName = buildData.release
+			? `${baseTaskName}${Configurations.Release}`
+			: `${baseTaskName}${Configurations.Debug}`;
 
 		return buildTaskName;
 	}
 }
-$injector.register("gradleBuildArgsService", GradleBuildArgsService);
+injector.register("gradleBuildArgsService", GradleBuildArgsService);

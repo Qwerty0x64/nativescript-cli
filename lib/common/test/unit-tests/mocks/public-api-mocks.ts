@@ -1,4 +1,5 @@
 import { exported } from "../../../decorators";
+import { injector } from "../../../yok";
 
 export class TestPublicAPI {
 	@exported("testPublicApi")
@@ -6,4 +7,4 @@ export class TestPublicAPI {
 		return expectedResult;
 	}
 }
-$injector.register("testPublicApi", TestPublicAPI);
+injector.register("testPublicApi", TestPublicAPI);

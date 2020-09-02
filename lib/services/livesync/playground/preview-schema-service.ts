@@ -1,8 +1,12 @@
 import { PubnubKeys } from "./preview-app-constants";
+import { IProjectDataService } from "../../../definitions/project";
+import { IDictionary, IErrors } from "../../../common/declarations";
+import { injector } from "../../../common/yok";
+import * as _ from "lodash";
 
 export class PreviewSchemaService implements IPreviewSchemaService {
 	private previewSchemas: IDictionary<IPreviewSchemaData> = {
-		"nsplay": {
+		nsplay: {
 			name: "nsplay",
 			scannerAppId: "org.nativescript.play",
 			scannerAppStoreId: "1263543946",
@@ -11,9 +15,9 @@ export class PreviewSchemaService implements IPreviewSchemaService {
 			msvKey: "cli",
 			publishKey: PubnubKeys.PUBLISH_KEY,
 			subscribeKey: PubnubKeys.SUBSCRIBE_KEY,
-			default: true
+			default: true,
 		},
-		"kspreview": {
+		kspreview: {
 			name: "kspreview",
 			scannerAppId: "com.kinvey.scanner",
 			scannerAppStoreId: "1458317125",
@@ -21,22 +25,29 @@ export class PreviewSchemaService implements IPreviewSchemaService {
 			previewAppStoreId: "1458502055",
 			msvKey: "kinveyStudio",
 			publishKey: PubnubKeys.PUBLISH_KEY,
-			subscribeKey: PubnubKeys.SUBSCRIBE_KEY
-		}
+			subscribeKey: PubnubKeys.SUBSCRIBE_KEY,
+		},
 	};
 
-	constructor(private $errors: IErrors,
-		private $projectDataService: IProjectDataService) { }
+	constructor(
+		private $errors: IErrors,
+		private $projectDataService: IProjectDataService
+	) {}
 
 	public getSchemaData(projectDir: string): IPreviewSchemaData {
 		let schemaName = this.getSchemaNameFromProject(projectDir);
 		if (!schemaName) {
-			schemaName = _.findKey(this.previewSchemas, previewSchema => previewSchema.default);
+			schemaName = _.findKey(
+				this.previewSchemas,
+				(previewSchema) => previewSchema.default
+			);
 		}
 
 		const result = this.previewSchemas[schemaName];
 		if (!result) {
-			this.$errors.fail(`Invalid schema. The valid schemas are ${_.keys(this.previewSchemas)}.`);
+			this.$errors.fail(
+				`Invalid schema. The valid schemas are ${_.keys(this.previewSchemas)}.`
+			);
 		}
 
 		return result;
@@ -46,9 +57,11 @@ export class PreviewSchemaService implements IPreviewSchemaService {
 		try {
 			const projectData = this.$projectDataService.getProjectData(projectDir);
 			return projectData.previewAppSchema;
-		} catch (err) { /* ignore the error */ }
+		} catch (err) {
+			/* ignore the error */
+		}
 
 		return null;
 	}
 }
-$injector.register("previewSchemaService", PreviewSchemaService);
+injector.register("previewSchemaService", PreviewSchemaService);

@@ -1,9 +1,18 @@
+import * as _ from "lodash";
+import { IProjectData } from "../../definitions/project";
+import { IPluginsService, IPluginData } from "../../definitions/plugins";
+import { ICommand, ICommandParameter } from "../../common/definitions/commands";
+import { IErrors } from "../../common/declarations";
+import { injector } from "../../common/yok";
+
 export class AddPluginCommand implements ICommand {
 	public allowedParameters: ICommandParameter[] = [];
 
-	constructor(private $pluginsService: IPluginsService,
+	constructor(
+		private $pluginsService: IPluginsService,
 		private $projectData: IProjectData,
-		private $errors: IErrors) {
+		private $errors: IErrors
+	) {
 		this.$projectData.initializeProjectData();
 	}
 
@@ -16,9 +25,16 @@ export class AddPluginCommand implements ICommand {
 			this.$errors.failWithHelp("You must specify plugin name.");
 		}
 
-		const installedPlugins = await this.$pluginsService.getAllInstalledPlugins(this.$projectData);
+		const installedPlugins = await this.$pluginsService.getAllInstalledPlugins(
+			this.$projectData
+		);
 		const pluginName = args[0].toLowerCase();
-		if (_.some(installedPlugins, (plugin: IPluginData) => plugin.name.toLowerCase() === pluginName)) {
+		if (
+			_.some(
+				installedPlugins,
+				(plugin: IPluginData) => plugin.name.toLowerCase() === pluginName
+			)
+		) {
 			this.$errors.fail(`Plugin "${pluginName}" is already installed.`);
 		}
 
@@ -26,4 +42,4 @@ export class AddPluginCommand implements ICommand {
 	}
 }
 
-$injector.registerCommand(["plugin|add", "plugin|install"], AddPluginCommand);
+injector.registerCommand(["plugin|add", "plugin|install"], AddPluginCommand);

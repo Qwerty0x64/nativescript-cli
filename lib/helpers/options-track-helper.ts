@@ -1,5 +1,14 @@
 import * as path from "path";
 import { TrackActionNames } from "../constants";
+import { IOptions } from "../declarations";
+import {
+	IAnalyticsService,
+	IDictionary,
+	IDashedOption,
+	OptionType,
+} from "../common/declarations";
+import * as _ from "lodash";
+import { injector } from "../common/yok";
 
 export class OptionsTracker {
 	public static PASSWORD_DETECTION_STRING = "password";
@@ -7,16 +16,14 @@ export class OptionsTracker {
 	public static PATH_REPLACE_VALUE = "_localpath";
 	public static SIZE_EXEEDED_REPLACE_VALUE = "sizeExceeded";
 
-	constructor(
-		private $analyticsService: IAnalyticsService) {
-	}
+	constructor(private $analyticsService: IAnalyticsService) {}
 
 	public async trackOptions(options: IOptions) {
 		const trackObject = this.getTrackObject(options);
 
 		await this.$analyticsService.trackEventActionInGoogleAnalytics({
 			action: TrackActionNames.Options,
-			additionalData: JSON.stringify(trackObject)
+			additionalData: JSON.stringify(trackObject),
 		});
 	}
 
@@ -26,7 +33,10 @@ export class OptionsTracker {
 		return this.sanitizeTrackObject(optionsArgvCopy, options);
 	}
 
-	private sanitizeTrackObject(data:  IDictionary<any>, options?: IOptions): IDictionary<any> {
+	private sanitizeTrackObject(
+		data: IDictionary<any>,
+		options?: IOptions
+	): IDictionary<any> {
 		const shorthands = options ? options.shorthands : [];
 		const optionsDefinitions = options ? options.options : {};
 
@@ -34,9 +44,16 @@ export class OptionsTracker {
 			if (this.shouldSkipProperty(key, value, shorthands, optionsDefinitions)) {
 				delete data[key];
 			} else {
-				if (options && optionsDefinitions[key] && optionsDefinitions[key].hasSensitiveValue !== false) {
+				if (
+					options &&
+					optionsDefinitions[key] &&
+					optionsDefinitions[key].hasSensitiveValue !== false
+				) {
 					value = OptionsTracker.PRIVATE_REPLACE_VALUE;
-				} else if (key.toLowerCase().indexOf(OptionsTracker.PASSWORD_DETECTION_STRING) >= 0) {
+				} else if (
+					key.toLowerCase().indexOf(OptionsTracker.PASSWORD_DETECTION_STRING) >=
+					0
+				) {
 					value = OptionsTracker.PRIVATE_REPLACE_VALUE;
 				} else if (_.isString(value) && value !== path.basename(value)) {
 					value = OptionsTracker.PATH_REPLACE_VALUE;
@@ -51,7 +68,12 @@ export class OptionsTracker {
 		return data;
 	}
 
-	private shouldSkipProperty(key: string, value: any, shorthands: string[] = [], options: IDictionary<IDashedOption> = {}): Boolean {
+	private shouldSkipProperty(
+		key: string,
+		value: any,
+		shorthands: string[] = [],
+		options: IDictionary<IDashedOption> = {}
+	): Boolean {
 		if (shorthands.indexOf(key) >= 0) {
 			return true;
 		}
@@ -66,7 +88,10 @@ export class OptionsTracker {
 
 		const optionDef = options[key];
 		if (optionDef && optionDef.type === OptionType.Boolean) {
-			if (optionDef.default !== true && value === false || optionDef.default === true && value === true) {
+			if (
+				(optionDef.default !== true && value === false) ||
+				(optionDef.default === true && value === true)
+			) {
 				return true;
 			}
 		}
@@ -77,4 +102,4 @@ export class OptionsTracker {
 	}
 }
 
-$injector.register("optionsTracker", OptionsTracker);
+injector.register("optionsTracker", OptionsTracker);

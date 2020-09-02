@@ -1,14 +1,23 @@
-export class OpenDeviceLogStreamCommand implements ICommand {
-	private static NOT_SPECIFIED_DEVICE_ERROR_MESSAGE = "More than one device found. Specify device explicitly.";
+import { IOptions } from "../../../declarations";
+import { ICommandParameter, ICommand } from "../../definitions/commands";
+import { ICleanupService } from "../../../definitions/cleanup-service";
+import { IErrors } from "../../declarations";
+import { injector } from "../../yok";
 
-	constructor(private $devicesService: Mobile.IDevicesService,
+export class OpenDeviceLogStreamCommand implements ICommand {
+	private static NOT_SPECIFIED_DEVICE_ERROR_MESSAGE =
+		"More than one device found. Specify device explicitly.";
+
+	constructor(
+		private $devicesService: Mobile.IDevicesService,
 		private $errors: IErrors,
 		private $commandsService: ICommandsService,
 		private $options: IOptions,
 		private $deviceLogProvider: Mobile.IDeviceLogProvider,
 		private $loggingLevels: Mobile.ILoggingLevels,
 		$iOSSimulatorLogProvider: Mobile.IiOSSimulatorLogProvider,
-		$cleanupService: ICleanupService) {
+		$cleanupService: ICleanupService
+	) {
 		$iOSSimulatorLogProvider.setShouldDispose(false);
 		$cleanupService.setShouldDispose(false);
 	}
@@ -18,11 +27,16 @@ export class OpenDeviceLogStreamCommand implements ICommand {
 	public async execute(args: string[]): Promise<void> {
 		this.$deviceLogProvider.setLogLevel(this.$loggingLevels.full);
 
-		await this.$devicesService.initialize({ deviceId: this.$options.device, skipInferPlatform: true });
+		await this.$devicesService.initialize({
+			deviceId: this.$options.device,
+			skipInferPlatform: true,
+		});
 
 		if (this.$devicesService.deviceCount > 1) {
 			await this.$commandsService.tryExecuteCommand("device", []);
-			this.$errors.failWithHelp(OpenDeviceLogStreamCommand.NOT_SPECIFIED_DEVICE_ERROR_MESSAGE);
+			this.$errors.failWithHelp(
+				OpenDeviceLogStreamCommand.NOT_SPECIFIED_DEVICE_ERROR_MESSAGE
+			);
 		}
 
 		const action = (device: Mobile.IiOSDevice) => device.openDeviceLogStream();
@@ -30,4 +44,7 @@ export class OpenDeviceLogStreamCommand implements ICommand {
 	}
 }
 
-$injector.registerCommand(["device|log", "devices|log"], OpenDeviceLogStreamCommand);
+injector.registerCommand(
+	["device|log", "devices|log"],
+	OpenDeviceLogStreamCommand
+);

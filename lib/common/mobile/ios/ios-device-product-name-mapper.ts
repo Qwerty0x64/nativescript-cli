@@ -1,3 +1,6 @@
+import { IStringDictionary } from "../../declarations";
+import { injector } from "../../yok";
+
 class IosDeviceProductNameMapper implements Mobile.IiOSDeviceProductNameMapper {
 	// http://support.hockeyapp.net/kb/client-integration-ios-mac-os-x/ios-device-types
 	private map: IStringDictionary = {
@@ -26,7 +29,7 @@ class IosDeviceProductNameMapper implements Mobile.IiOSDeviceProductNameMapper {
 		"iPad2,6": "iPad mini (A1454)",
 		"iPad2,7": "iPad mini (A1455)",
 		"iPad3,1": "iPad (3rd gen, Wi-Fi)",
-		"iPad3,2":  "iPad (3rd gen, Wi-Fi+LTE Verizon)",
+		"iPad3,2": "iPad (3rd gen, Wi-Fi+LTE Verizon)",
 		"iPad3,3": "iPad (3rd gen, Wi-Fi+LTE AT&T)",
 		"iPad3,4": "iPad (4th gen, Wi-Fi)",
 		"iPad3,5": "iPad (4th gen, A1459)",
@@ -51,11 +54,11 @@ class IosDeviceProductNameMapper implements Mobile.IiOSDeviceProductNameMapper {
 		"iPod3,1": "iPod touch (3rd gen)",
 		"iPod4,1": "iPod touch (4th gen)",
 		"iPod5,1": "iPod touch (5th gen)",
-		"iPod7,1": "iPod touch (6th gen)"
+		"iPod7,1": "iPod touch (6th gen)",
 	};
 
 	public resolveProductName(deviceType: string): string {
 		return this.map[deviceType];
 	}
 }
-$injector.register("iOSDeviceProductNameMapper", IosDeviceProductNameMapper);
+injector.register("iOSDeviceProductNameMapper", IosDeviceProductNameMapper);

@@ -1,14 +1,24 @@
+import { IProjectData } from "../../definitions/project";
+import { IAndroidResourcesMigrationService } from "../../declarations";
+import { ICommand, ICommandParameter } from "../../common/definitions/commands";
+import { IErrors } from "../../common/declarations";
+import { injector } from "../../common/yok";
+
 export class ResourcesUpdateCommand implements ICommand {
 	public allowedParameters: ICommandParameter[] = [];
 
-	constructor(private $projectData: IProjectData,
+	constructor(
+		private $projectData: IProjectData,
 		private $errors: IErrors,
-		private $androidResourcesMigrationService: IAndroidResourcesMigrationService) {
+		private $androidResourcesMigrationService: IAndroidResourcesMigrationService
+	) {
 		this.$projectData.initializeProjectData();
 	}
 
 	public async execute(args: string[]): Promise<void> {
-		await this.$androidResourcesMigrationService.migrate(this.$projectData.getAppResourcesDirectoryPath());
+		await this.$androidResourcesMigrationService.migrate(
+			this.$projectData.getAppResourcesDirectoryPath()
+		);
 	}
 
 	public async canExecute(args: string[]): Promise<boolean> {
@@ -19,11 +29,19 @@ export class ResourcesUpdateCommand implements ICommand {
 
 		for (const platform of args) {
 			if (!this.$androidResourcesMigrationService.canMigrate(platform)) {
-				this.$errors.fail(`The ${platform} does not need to have its resources updated.`);
+				this.$errors.fail(
+					`The ${platform} does not need to have its resources updated.`
+				);
 			}
 
-			if (this.$androidResourcesMigrationService.hasMigrated(this.$projectData.getAppResourcesDirectoryPath())) {
-				this.$errors.fail("The App_Resources have already been updated for the Android platform.");
+			if (
+				this.$androidResourcesMigrationService.hasMigrated(
+					this.$projectData.getAppResourcesDirectoryPath()
+				)
+			) {
+				this.$errors.fail(
+					"The App_Resources have already been updated for the Android platform."
+				);
 			}
 		}
 
@@ -31,4 +49,4 @@ export class ResourcesUpdateCommand implements ICommand {
 	}
 }
 
-$injector.registerCommand("resources|update", ResourcesUpdateCommand);
+injector.registerCommand("resources|update", ResourcesUpdateCommand);

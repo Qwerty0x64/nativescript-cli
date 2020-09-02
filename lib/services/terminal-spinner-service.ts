@@ -1,12 +1,18 @@
-import * as ora from 'ora';
+const ora = require("ora");
+import { injector } from "../common/yok";
 
 export class TerminalSpinnerService implements ITerminalSpinnerService {
-	public createSpinner(spinnerOptions: ITerminalSpinnerOptions = {}): ITerminalSpinner {
+	public createSpinner(
+		spinnerOptions: ITerminalSpinnerOptions = {}
+	): ITerminalSpinner {
 		spinnerOptions.stream = spinnerOptions.stream || process.stdout;
 		return new ora(spinnerOptions);
 	}
 
-	public async execute<T>(spinnerOptions: ITerminalSpinnerOptions, action: () => Promise<T>): Promise<T> {
+	public async execute<T>(
+		spinnerOptions: ITerminalSpinnerOptions,
+		action: () => Promise<T>
+	): Promise<T> {
 		const spinner = this.createSpinner(spinnerOptions);
 
 		spinner.start();
@@ -24,4 +30,4 @@ export class TerminalSpinnerService implements ITerminalSpinnerService {
 		return result;
 	}
 }
-$injector.register('terminalSpinnerService', TerminalSpinnerService);
+injector.register("terminalSpinnerService", TerminalSpinnerService);

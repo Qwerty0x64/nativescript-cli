@@ -1,6 +1,13 @@
+import { IProjectData } from "./definitions/project";
+import { IPlatformValidationService } from "./declarations";
+import { injector } from "./common/yok";
+import { ICommandParameter } from "./common/definitions/commands";
+
 export class PlatformCommandParameter implements ICommandParameter {
-	constructor(private $platformValidationService: IPlatformValidationService,
-		private $projectData: IProjectData) { }
+	constructor(
+		private $platformValidationService: IPlatformValidationService,
+		private $projectData: IProjectData
+	) {}
 	mandatory = true;
 	async validate(value: string): Promise<boolean> {
 		this.$projectData.initializeProjectData();
@@ -8,4 +15,4 @@ export class PlatformCommandParameter implements ICommandParameter {
 		return true;
 	}
 }
-$injector.register("platformCommandParameter", PlatformCommandParameter);
+injector.register("platformCommandParameter", PlatformCommandParameter);

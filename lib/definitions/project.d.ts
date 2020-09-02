@@ -1,3 +1,24 @@
+import type { SupportedPlatform } from "../constants";
+import {
+	IAndroidBuildOptionsSettings,
+	IProvision,
+	ITeamIdentifier,
+	IPlatformBuildData,
+} from "../declarations";
+import { ICheckEnvironmentRequirementsOutput, IPlatformData } from "./platform";
+import { IPluginData, IBasePluginData } from "./plugins";
+import {
+	IStringDictionary,
+	IProjectDir,
+	IDeviceIdentifier,
+	IRelease,
+	IPlatform,
+	IDependencyInformation,
+	ISpawnResult,
+} from "../common/declarations";
+import { SupportedConfigValues } from "../tools/config-manipulation/config-transformer";
+import * as constants from "../constants";
+
 interface IProjectName {
 	/**
 	 * Name of the newly created application.
@@ -29,9 +50,7 @@ interface IProjectSettingsBase extends IProjectName {
 /**
  * Describes information passed to project creation hook (createProject).
  */
-interface IProjectCreationSettings extends IProjectSettingsBase, IProjectDir {
-
-}
+interface IProjectCreationSettings extends IProjectSettingsBase, IProjectDir {}
 
 /**
  * Describes available settings when creating new NativeScript application.
@@ -48,13 +67,14 @@ interface IProjectSettings extends IProjectSettingsBase {
 	force?: boolean;
 }
 
-
-interface ICreateProjectData extends IProjectDir, IProjectName {
-
-}
+interface ICreateProjectData extends IProjectDir, IProjectName {}
 
 interface IProjectService {
-	validateProjectName(opts: { projectName: string, force: boolean, pathToProject: string }): Promise<string>
+	validateProjectName(opts: {
+		projectName: string;
+		force: boolean;
+		pathToProject: string;
+	}): Promise<string>;
 	/**
 	 * Creates new NativeScript application.
 	 * @param {any} projectSettings Options describing new project - its name, appId, path and template from which to be created.
@@ -70,13 +90,61 @@ interface IProjectService {
 	isValidNativeScriptProject(pathToProject?: string): boolean;
 }
 
+interface INsConfigPlaform {
+	id?: string;
+}
+
+interface INsConfigIOS extends INsConfigPlaform {
+	discardUncaughtJsExceptions?: boolean;
+}
+
+interface INsConfigAndroid extends INsConfigPlaform {
+	v8Flags?: string;
+
+	codeCache?: boolean;
+
+	heapSnapshotScript?: string;
+
+	"snapshot.blob"?: string;
+
+	profilerOutputDir?: string;
+
+	gcThrottleTime?: number;
+
+	profiling?: string;
+
+	markingMode?: string;
+
+	handleTimeZoneChanges?: boolean;
+
+	maxLogcatObjectSize?: number;
+
+	forceLog?: boolean;
+
+	memoryCheckInterval?: number;
+
+	freeMemoryRatio?: number;
+
+	suppressCallJSMethodExceptions?: boolean;
+
+	discardUncaughtJsExceptions?: boolean;
+
+	enableLineBreakpoints?: boolean;
+
+	enableMultithreadedJavascript?: boolean;
+}
+
 interface INsConfig {
+	id?: string;
+	main?: string;
 	appPath?: string;
 	appResourcesPath?: string;
 	shared?: boolean;
 	previewAppSchema?: string;
 	overridePods?: string;
 	webpackConfigPath?: string;
+	ios?: INsConfigIOS;
+	android?: INsConfigAndroid;
 }
 
 interface IProjectData extends ICreateProjectData {
@@ -89,6 +157,7 @@ interface IProjectData extends ICreateProjectData {
 	appDirectoryPath: string;
 	appResourcesDirectoryPath: string;
 	projectType: string;
+	packageJsonData: any;
 	nsConfig: INsConfig;
 	androidManifestPath: string;
 	appGradlePath: string;
@@ -98,7 +167,7 @@ interface IProjectData extends ICreateProjectData {
 	podfilePath: string;
 	/**
 	 * Defines if the project is a code sharing one.
-	 * Value is true when project has nsconfig.json and it has `shared: true` in it.
+	 * Value is true when project has nativescript.config and it has `shared: true` in it.
 	 */
 	isShared: boolean;
 
@@ -110,7 +179,7 @@ interface IProjectData extends ICreateProjectData {
 	/**
 	 * Defines the path to the configuration file passed to webpack process.
 	 * By default this is the webpack.config.js at the root of the application.
-	 * The value can be changed by setting `webpackConfigPath` in nsconfig.json.
+	 * The value can be changed by setting `webpackConfigPath` in nativescript.config.
 	 */
 	webpackConfigPath: string;
 
@@ -120,7 +189,10 @@ interface IProjectData extends ICreateProjectData {
 	 * @returns {void}
 	 */
 	initializeProjectData(projectDir?: string): void;
-	initializeProjectDataFromContent(packageJsonContent: string, nsconfigContent: string, projectDir?: string): void;
+	initializeProjectDataFromContent(
+		packageJsonContent: string,
+		projectDir?: string
+	): void;
 	getAppDirectoryPath(projectDir?: string): string;
 	getAppDirectoryRelativePath(): string;
 	getAppResourcesDirectoryPath(projectDir?: string): string;
@@ -154,8 +226,8 @@ interface IProjectDataService {
 	removeNSProperty(projectDir: string, propertyName: string): void;
 
 	/**
-	 * Removes a property from `nsconfig.json`.
-	 * @param {string} projectDir The project directory - the place where the `nsconfig.json` is located.
+	 * Removes a property from `nativescript.config`.
+	 * @param {string} projectDir The project directory - the place where the `nativescript.config` is located.
 	 * @param {string} propertyName The name of the property to be removed.
 	 * @returns {void}
 	 */
@@ -178,7 +250,6 @@ interface IProjectDataService {
 	 * @returns {Promise<IAssetsStructure>} An object describing the current asset structure.
 	 */
 	getAssetsStructure(opts: IProjectDir): Promise<IAssetsStructure>;
-
 
 	/**
 	 * Gives information about the whole assets structure for iOS.
@@ -204,12 +275,70 @@ interface IProjectDataService {
 	getAppExecutableFiles(projectDir: string): string[];
 
 	/**
- * Returns a value from `nativescript` key in project's package.json.
- * @param {string} jsonData The project directory - the place where the root package.json is located.
- * @param {string} propertyName The name of the property to be checked in `nativescript` key.
- * @returns {any} The value of the property.
- */
+	 * Returns package details for runtime, respecting the nativescript key for legacy projects
+	 * @param {string} projectDir Path to application.
+	 * @param {string} platform Platform key
+	 */
+	getRuntimePackage(
+		projectDir: string,
+		platform: SupportedPlatform
+	): IBasePluginData;
+
+	/**
+	 * Returns a value from `nativescript` key in project's package.json.
+	 * @param {string} jsonData The project directory - the place where the root package.json is located.
+	 * @param {string} propertyName The name of the property to be checked in `nativescript` key.
+	 * @returns {any} The value of the property.
+	 */
 	getNSValueFromContent(jsonData: Object, propertyName: string): any;
+}
+
+interface IProjectConfigInformation {
+	hasTSConfig: boolean;
+	hasJSConfig: boolean;
+	hasNSConfig: boolean;
+	usingNSConfig: boolean;
+	TSConfigPath: string;
+	JSConfigPath: string;
+	NSConfigPath: string;
+}
+
+interface IProjectConfigService {
+	/**
+	 * read the nativescript.config.(js|ts) file
+	 * @returns {INsConfig} the parsed config data
+	 */
+	readConfig(projectDir?: string): INsConfig;
+	/**
+	 * Get value for a given config key path
+	 * @param key the property key path
+	 */
+	getValue(key: string): any;
+	/**
+	 * Set value for a given config key path
+	 * @param key the property key path
+	 * @param value
+	 */
+	setValue(key: string, value: SupportedConfigValues): Promise<boolean>;
+
+	/**
+	 * Override legacy fallback - and force using the new configs
+	 * Used by the migrate service to force the config service to
+	 * write new values into the new configs.
+	 * @param force
+	 */
+	setForceUsingNSConfig(force: boolean): boolean;
+
+	detectProjectConfigs(projectDir?: string): IProjectConfigInformation;
+
+	getDefaultTSConfig(appId: string): string;
+
+	writeDefaultConfig(projectDir?: string, appId?: string): void;
+
+	writeLegacyNSConfigIfNeeded(
+		projectDir: string,
+		runtimePackage: IBasePluginData
+	): void;
 }
 
 interface IAssetItem {
@@ -228,7 +357,7 @@ interface IAssetItem {
 
 interface IAssetSubGroup {
 	images: IAssetItem[];
-	info?: { version: string, author: string };
+	info?: { version: string; author: string };
 	[imageType: string]: any;
 }
 
@@ -272,15 +401,7 @@ interface ITemplateData {
 	 * In case template is v1, will be {pathToProjectDir}/node_modules/{templateName}.
 	 * In case template is v2, will be null.
 	 */
-	templatePath: string;
-	/**
-	 * The templateVersion property from nativescript section inside package.json file
-	 * "nativescript": {
-			"id": "org.nativescript.app6",
-			"templateVersion": "v2"
-		}
-	 */
-	templateVersion: string;
+	// templatePath: string;
 	/**
 	 * The whole content of package.json file
 	 */
@@ -297,7 +418,7 @@ interface ITemplatePackageJsonContent extends IBasePluginData {
 	devDependencies: IStringDictionary;
 	nativescript?: {
 		templateVersion?: string;
-	}
+	};
 }
 
 /**
@@ -312,11 +433,17 @@ interface IProjectTemplatesService {
 	 * @param {string} templateName The name of the template.
 	 * @return {ITemplateData} Data describing the template - location where it is installed and its NativeScript version.
 	 */
-	prepareTemplate(templateName: string, projectDir: string): Promise<ITemplateData>;
+	prepareTemplate(
+		templateName: string,
+		projectDir: string
+	): Promise<ITemplateData>;
 }
 
 interface IPlatformProjectServiceBase {
-	getPluginPlatformsFolderPath(pluginData: IPluginData, platform: string): string;
+	getPluginPlatformsFolderPath(
+		pluginData: IPluginData,
+		platform: string
+	): string;
 	getFrameworkVersion(projectData: IProjectData): string;
 }
 
@@ -332,7 +459,10 @@ interface INativePrepare {
 	skipNativePrepare: boolean;
 }
 
-interface IBuildConfig extends IAndroidBuildOptionsSettings, IiOSBuildConfig, IProjectDir {
+interface IBuildConfig
+	extends IAndroidBuildOptionsSettings,
+		IiOSBuildConfig,
+		IProjectDir {
 	clean?: boolean;
 	architectures?: string[];
 	buildOutputStdio?: string;
@@ -341,7 +471,13 @@ interface IBuildConfig extends IAndroidBuildOptionsSettings, IiOSBuildConfig, IP
 /**
  * Describes iOS-specific build configuration properties
  */
-interface IiOSBuildConfig extends IBuildForDevice, IiCloudContainerEnvironment, IDeviceIdentifier, IProvision, ITeamIdentifier, IRelease {
+interface IiOSBuildConfig
+	extends IBuildForDevice,
+		IiCloudContainerEnvironment,
+		IDeviceIdentifier,
+		IProvision,
+		ITeamIdentifier,
+		IRelease {
 	/**
 	 * Identifier of the mobile provision which will be used for the build. If not set a provision will be selected automatically if possible.
 	 */
@@ -362,7 +498,10 @@ interface ILocalBuildService {
 	 * @param {IPlatformBuildData} platformBuildOptions Additional options for controlling the build.
 	 * @return {Promise<string>} Path to the build output.
 	 */
-	build(platform: string, platformBuildOptions: IPlatformBuildData): Promise<string>;
+	build(
+		platform: string,
+		platformBuildOptions: IPlatformBuildData
+	): Promise<string>;
 	/**
 	 * Removes build artifacts specific to the platform
 	 * @param {ICleanNativeAppData} data Data describing the clean app process
@@ -371,14 +510,18 @@ interface ILocalBuildService {
 	cleanNativeApp(data: ICleanNativeAppData): Promise<void>;
 }
 
-interface ICleanNativeAppData extends IProjectDir, IPlatform { }
+interface ICleanNativeAppData extends IProjectDir, IPlatform {}
 
 interface IValidatePlatformOutput {
 	checkEnvironmentRequirementsOutput: ICheckEnvironmentRequirementsOutput;
 }
 
 interface ITestExecutionService {
-	startKarmaServer(platform: string, liveSyncInfo: ILiveSyncInfo, deviceDescriptors: ILiveSyncDeviceDescriptor[]): Promise<void>;
+	startKarmaServer(
+		platform: string,
+		liveSyncInfo: ILiveSyncInfo,
+		deviceDescriptors: ILiveSyncDeviceDescriptor[]
+	): Promise<void>;
 	canStartKarmaServer(projectData: IProjectData): Promise<boolean>;
 }
 
@@ -409,7 +552,10 @@ interface ICocoaPodsService {
 	 * @param platformData Information about the platform.
 	 * @returns {Promise<void>}
 	 */
-	applyPodfileFromAppResources(projectData: IProjectData, platformData: IPlatformData): Promise<void>;
+	applyPodfileFromAppResources(
+		projectData: IProjectData,
+		platformData: IPlatformData
+	): Promise<void>;
 
 	/**
 	 * Prepares the Podfile content of a plugin and merges it in the project's Podfile.
@@ -419,7 +565,12 @@ interface ICocoaPodsService {
 	 * @param {IPlatformData} platformData Information about the platform.
 	 * @returns {Promise<void>}
 	 */
-	applyPodfileToProject(moduleName: string, podfilePath: string, projectData: IProjectData, platformData: IPlatformData): Promise<void>;
+	applyPodfileToProject(
+		moduleName: string,
+		podfilePath: string,
+		projectData: IProjectData,
+		platformData: IPlatformData
+	): Promise<void>;
 
 	/**
 	 * Gives the path to the plugin's Podfile.
@@ -436,7 +587,12 @@ interface ICocoaPodsService {
 	 * @param {string} nativeProjectPath Path to the native Xcode project.
 	 * @returns {void}
 	 */
-	removePodfileFromProject(moduleName: string, podfilePath: string, projectData: IProjectData, nativeProjectPath: string): void;
+	removePodfileFromProject(
+		moduleName: string,
+		podfilePath: string,
+		projectData: IProjectData,
+		nativeProjectPath: string
+	): void;
 
 	/**
 	 * Gives the path to project's Podfile.
@@ -451,7 +607,10 @@ interface ICocoaPodsService {
 	 * @param {string} xcodeProjPath The full path to the .xcodeproj file.
 	 * @returns {Promise<ISpawnResult>} Information about the spawned process.
 	 */
-	executePodInstall(projectRoot: string, xcodeProjPath: string): Promise<ISpawnResult>;
+	executePodInstall(
+		projectRoot: string,
+		xcodeProjPath: string
+	): Promise<ISpawnResult>;
 
 	/**
 	 * Merges pod's xcconfig file into project's xcconfig file
@@ -459,18 +618,33 @@ interface ICocoaPodsService {
 	 * @param platformData
 	 * @param opts
 	 */
-	mergePodXcconfigFile(projectData: IProjectData, platformData: IPlatformData, opts: IRelease): Promise<void>;
+	mergePodXcconfigFile(
+		projectData: IProjectData,
+		platformData: IPlatformData,
+		opts: IRelease
+	): Promise<void>;
 }
 
 interface ICocoaPodsPlatformManager {
-	addPlatformSection(projectData: IProjectData, podfilePlatformData: IPodfilePlatformData, projectPodfileContent: string): string;
-	removePlatformSection(moduleName: string, projectPodFileContent: string, podfilePath: string): string;
-	replacePlatformRow(podfileContent: string, podfilePath: string): { replacedContent: string, podfilePlatformData: IPodfilePlatformData };
+	addPlatformSection(
+		projectData: IProjectData,
+		podfilePlatformData: IPodfilePlatformData,
+		projectPodfileContent: string
+	): string;
+	removePlatformSection(
+		moduleName: string,
+		projectPodFileContent: string,
+		podfilePath: string
+	): string;
+	replacePlatformRow(
+		podfileContent: string,
+		podfilePath: string
+	): { replacedContent: string; podfilePlatformData: IPodfilePlatformData };
 }
 
 declare const enum BuildNames {
 	debug = "Debug",
-	release = "Release"
+	release = "Release",
 }
 
 interface IXcodeTargetBuildConfigurationProperty {
@@ -483,18 +657,40 @@ interface IXcodeTargetBuildConfigurationProperty {
  * Describes a service used to add and remove iOS extension
  */
 interface IIOSNativeTargetService {
-	addTargetToProject(targetRootPath: string, targetFolder: string, targetType: string, project: IXcode.project, platformData: IPlatformData, parentTarget?: string): IXcode.target;
-	prepareSigning(targetUuids: string[], projectData:IProjectData, projectPath: string): void;
+	addTargetToProject(
+		targetRootPath: string,
+		targetFolder: string,
+		targetType: string,
+		project: IXcode.project,
+		platformData: IPlatformData,
+		parentTarget?: string
+	): IXcode.target;
+	prepareSigning(
+		targetUuids: string[],
+		projectData: IProjectData,
+		projectPath: string
+	): void;
 	getTargetDirectories(folderPath: string): string[];
-	setXcodeTargetBuildConfigurationProperties(properties: IXcodeTargetBuildConfigurationProperty[], targetName: string, project: IXcode.project): void
-	setConfigurationsFromJsonFile(jsonPath: string, targetUuid: string, targetName: string, project: IXcode.project): void
+	setXcodeTargetBuildConfigurationProperties(
+		properties: IXcodeTargetBuildConfigurationProperty[],
+		targetName: string,
+		project: IXcode.project
+	): void;
+	setConfigurationsFromJsonFile(
+		jsonPath: string,
+		targetUuid: string,
+		targetName: string,
+		project: IXcode.project
+	): void;
 }
 
 /**
  * Describes a service used to add and remove iOS extension
  */
 interface IIOSExtensionsService {
-	addExtensionsFromPath(options: IAddExtensionsFromPathOptions): Promise<boolean>;
+	addExtensionsFromPath(
+		options: IAddExtensionsFromPathOptions
+	): Promise<boolean>;
 	removeExtensions(options: IRemoveExtensionsOptions): void;
 }
 
@@ -519,10 +715,10 @@ interface IAddWatchAppFromPathOptions extends IAddTargetFromPathOptions {
 }
 
 interface IRemoveExtensionsOptions {
-	pbxProjPath: string
+	pbxProjPath: string;
 }
 
-interface IRemoveWatchAppOptions extends IRemoveExtensionsOptions { }
+interface IRemoveWatchAppOptions extends IRemoveExtensionsOptions {}
 
 interface IRubyFunction {
 	functionName: string;

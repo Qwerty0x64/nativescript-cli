@@ -1,3 +1,14 @@
+import {
+	IBuildConfig,
+	IProjectData,
+	IBuildForDevice,
+	INativePrepare,
+} from "./project";
+import { IHasAndroidBundle, IDependencyData, IOptions } from "../declarations";
+import { IControllerDataBase } from "./data";
+import { IRelease } from "../common/declarations";
+import { INotConfiguredEnvOptions } from "../common/definitions/commands";
+
 /**
  * Describes information about how to build the native project.
  */
@@ -11,7 +22,11 @@ interface IBuildPlatformAction {
 	 * @param {IProjectData} projectData DTO with information about the project.
 	 * @returns {Promise<string>} The path to the built file.
 	 */
-	buildPlatform(platform: string, buildConfig: IBuildConfig, projectData: IProjectData): Promise<string>;
+	buildPlatform(
+		platform: string,
+		buildConfig: IBuildConfig,
+		projectData: IProjectData
+	): Promise<string>;
 }
 
 interface IPlatformData {
@@ -22,7 +37,9 @@ interface IPlatformData {
 	platformNameLowerCase: string;
 	appDestinationDirectoryPath: string;
 	getBuildOutputPath(options: IBuildOutputOptions): string;
-	getValidBuildOutputData(buildOptions: IBuildOutputOptions): IValidBuildOutputData;
+	getValidBuildOutputData(
+		buildOptions: IBuildOutputOptions
+	): IValidBuildOutputData;
 	frameworkDirectoriesExtensions?: string[];
 	frameworkDirectoriesNames?: string[];
 	targetedOS?: string[];
@@ -30,6 +47,7 @@ interface IPlatformData {
 	configurationFilePath?: string;
 	relativeToFrameworkConfigurationFilePath: string;
 	fastLivesyncFileExtensions: string[];
+	getFrameworkVersion?(projectData: IProjectData): string;
 }
 
 interface IValidBuildOutputData {
@@ -37,7 +55,10 @@ interface IValidBuildOutputData {
 	regexes?: RegExp[];
 }
 
-interface IBuildOutputOptions extends Partial<IBuildForDevice>, IRelease, Partial<IHasAndroidBundle> {
+interface IBuildOutputOptions
+	extends Partial<IBuildForDevice>,
+		IRelease,
+		Partial<IHasAndroidBundle> {
 	outputPath?: string;
 }
 
@@ -46,7 +67,9 @@ interface IPlatformsDataService {
 }
 
 interface INodeModulesBuilder {
-	prepareNodeModules(prepareNodeModulesData: IPrepareNodeModulesData): Promise<void>;
+	prepareNodeModules(
+		prepareNodeModulesData: IPrepareNodeModulesData
+	): Promise<void>;
 }
 
 interface IPrepareNodeModulesData {
@@ -66,12 +89,14 @@ interface IBuildInfo {
 	 * As `xcrun` command does not throw an error when IPHONEOS_DEPLOYMENT_TARGET is provided in `xcconfig` file and
 	 * the simulator's version does not match IPHONEOS_DEPLOYMENT_TARGET's value, we need to save it to buildInfo file
 	 * in order check it on livesync and throw an error to the user.
-	*/
+	 */
 	deploymentTarget?: string;
 }
 
 interface IPlatformEnvironmentRequirements {
-	checkEnvironmentRequirements(input: ICheckEnvironmentRequirementsInput): Promise<ICheckEnvironmentRequirementsOutput>;
+	checkEnvironmentRequirements(
+		input: ICheckEnvironmentRequirementsInput
+	): Promise<ICheckEnvironmentRequirementsOutput>;
 }
 
 interface ICheckEnvironmentRequirementsInput {
@@ -98,6 +123,15 @@ interface IPlatformController {
 }
 
 interface IAddPlatformService {
-	addPlatformSafe(projectData: IProjectData, platformData: IPlatformData, packageToInstall: string, nativePrepare: INativePrepare): Promise<string>;
-	setPlatformVersion(platformData: IPlatformData, projectData: IProjectData, frameworkVersion: string): Promise<void>
+	addPlatformSafe(
+		projectData: IProjectData,
+		platformData: IPlatformData,
+		packageToInstall: string,
+		addPlatformData: IAddPlatformData
+	): Promise<string>;
+	setPlatformVersion(
+		platformData: IPlatformData,
+		projectData: IProjectData,
+		frameworkVersion: string
+	): Promise<void>;
 }

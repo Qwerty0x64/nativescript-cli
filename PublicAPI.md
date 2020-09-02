@@ -4,7 +4,7 @@ Public API
 This document describes all methods that can be invoked when NativeScript CLI is required as library, i.e.
 
 ```JavaScript
-const tns = require("nativescript");
+const ns = require("nativescript");
 ```
 
 # Contents
@@ -221,11 +221,10 @@ Returns an IProjectData object that is initialized with the provided package.jso
 /**
  * Returns an initialized IProjectData object containing data about the NativeScript project in the provided projectDir
  * @param {string} packageJsonContent The content of the project.json file in the root of the project
- * @param {string} nsconfigContent The content of the nsconfig.json file in the root of the project
  * @param {string} projectDir The path to the project
  * @returns {IProjectData} Information about the NativeScript project
  */
-getProjectDataFromContent(packageJsonContent: string, nsconfigContent: string, projectDir?: string): IProjectData
+getProjectDataFromContent(packageJsonContent: string, projectDir?: string): IProjectData
 ```
 
 ### getNsConfigDefaultContent
@@ -1515,8 +1514,8 @@ setCleanupLogFile(filePath: string): void;
 
 * Usage
 ```JavaScript
-const tns = require("nativescript");
-tns.cleanupService.setCleanupLogFile("/Users/username/cleanup-logs.txt");
+const ns = require("nativescript");
+ns.cleanupService.setCleanupLogFile("/Users/username/cleanup-logs.txt");
 ```
 
 ## initializeService
@@ -1545,18 +1544,18 @@ interface IInitializeService {
 * Usage
 	* Initialization without passing any data - `logger` will be initialized with default CLI settings. Warnings will be printed if there are any.
 	```JavaScript
-	const tns = require("nativescript");
-	tns.initializeService.initialize();
+	const ns = require("nativescript");
+	ns.initializeService.initialize();
 	```
 	* Initialize with custom settings service options:
 	```JavaScript
-	const tns = require("nativescript");
-	tns.initializeService.initialize({ settingsServiceOptions: { profileDir: "/Users/username/customDir", userAgentName: "MyApp" } });
+	const ns = require("nativescript");
+	ns.initializeService.initialize({ settingsServiceOptions: { profileDir: "/Users/username/customDir", userAgentName: "MyApp" } });
 	```
 	* Initialize with custom extensibility path:
 	```JavaScript
-	const tns = require("nativescript");
-	tns.initializeService.initialize({ extensibilityOptions: { pathToExtensions: "/Users/username/customDir/extensions" } });
+	const ns = require("nativescript");
+	ns.initializeService.initialize({ extensibilityOptions: { pathToExtensions: "/Users/username/customDir/extensions" } });
 	```
 
 ## logger
@@ -1634,7 +1633,7 @@ The `emit-appender` is used to emit the log events through a passed emitter inst
 
 * Usage:
 ```JavaScript
-const tns = require("nativescript");
+const ns = require("nativescript");
 const { EventEmitter } = require("events");
 const { EMIT_APPENDER_EVENT_NAME, LoggerAppenders } = tns.constants;
 const emitter = new EventEmitter();
@@ -1647,7 +1646,7 @@ emitter.on(EMIT_APPENDER_EVENT_NAME, (logData) => {
 	}
 });
 
-const logger = tns.logger;
+const logger = ns.logger;
 logger.initialize({
 	appenderOptions: {
 		type: LoggerAppenders.emitAppender,
@@ -1656,18 +1655,18 @@ logger.initialize({
 });
 ```
 
-> NOTE: In several cases CLI passes additional configuration properties in the `context` of the `loggingEvent`. Full list is available in the `tns.constants.LoggerConfigData` object. These properties are used by CLI's layout and appender to change the way the message is printed on the terminal and if it should be on stderr or stdout.
+> NOTE: In several cases CLI passes additional configuration properties in the `context` of the `loggingEvent`. Full list is available in the `ns.constants.LoggerConfigData` object. These properties are used by CLI's layout and appender to change the way the message is printed on the terminal and if it should be on stderr or stdout.
 
 #### cli-appender
 `cli-appender` prints messages to stdout or stderr based on the passed options for the message.
 
 * Usage
 ```JavaScript
-const tns = require("nativescript");
+const ns = require("nativescript");
 const { EventEmitter } = require("events");
-const { EMIT_APPENDER_EVENT_NAME, LoggerAppenders } = tns.constants;
+const { EMIT_APPENDER_EVENT_NAME, LoggerAppenders } = ns.constants;
 
-const logger = tns.logger;
+const logger = ns.logger;
 logger.initialize({
 	appenderOptions: {
 		type: LoggerAppenders.cliAppender,
@@ -1686,7 +1685,7 @@ log4js.addLayout("myCustomLayout", (config) => {
     }
 });
 
-tns.logger.initialize({ appenderOptions: { layout: { type: "myCustomLayout" } } });
+ns.logger.initialize({ appenderOptions: { layout: { type: "myCustomLayout" } } });
 ```
 
 ## How to add a new method to Public API

@@ -1,6 +1,10 @@
+import * as _ from "lodash";
+import { injector } from "../yok";
+import { CodeGeneration } from "./code-generation";
+
 export enum CodeEntityType {
 	Line,
-	Block
+	Block,
 }
 
 export class Line implements CodeGeneration.ILine {
@@ -18,7 +22,7 @@ export class Line implements CodeGeneration.ILine {
 		return new Line(content);
 	}
 }
-$injector.register("swaggerLine", Line);
+injector.register("swaggerLine", Line);
 
 export class Block implements CodeGeneration.IBlock {
 	public opener: string;
@@ -51,4 +55,4 @@ export class Block implements CodeGeneration.IBlock {
 		this.codeEntities.push(line);
 	}
 }
-$injector.register("swaggerBlock", Block);
+injector.register("swaggerBlock", Block);

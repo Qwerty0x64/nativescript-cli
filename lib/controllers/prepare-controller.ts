@@ -1,9 +1,42 @@
 import * as choki from "chokidar";
 import { hook } from "../common/helpers";
-import { performanceLog, cache } from "../common/decorators";
+import { cache, performanceLog } from "../common/decorators";
 import { EventEmitter } from "events";
 import * as path from "path";
-import { PREPARE_READY_EVENT_NAME, WEBPACK_COMPILATION_COMPLETE, PACKAGE_JSON_FILE_NAME, PLATFORMS_DIR_NAME, TrackActionNames, AnalyticsEventLabelDelimiter, CONFIG_NS_FILE_NAME } from "../constants";
+import {
+	AnalyticsEventLabelDelimiter,
+	CONFIG_FILE_NAME_JS,
+	CONFIG_FILE_NAME_TS,
+	PACKAGE_JSON_FILE_NAME,
+	PLATFORMS_DIR_NAME,
+	PREPARE_READY_EVENT_NAME,
+	SupportedPlatform,
+	TrackActionNames,
+	WEBPACK_COMPILATION_COMPLETE,
+} from "../constants";
+import {
+	IProjectConfigService,
+	IProjectData,
+	IProjectDataService,
+} from "../definitions/project";
+import {
+	INodeModulesDependenciesBuilder,
+	IPlatformController,
+	IPlatformData,
+	IPlatformsDataService,
+} from "../definitions/platform";
+import { IPluginsService } from "../definitions/plugins";
+import { IWatchIgnoreListService } from "../declarations";
+import {
+	IAnalyticsService,
+	IDictionary,
+	IFileSystem,
+	IHooksService,
+} from "../common/declarations";
+import { injector } from "../common/yok";
+import * as _ from "lodash";
+// import { project } from "nativescript-dev-xcode";
+// import { platform } from "os";
 interface IPlatformWatcherData {
 	hasWebpackCompilerProcess: boolean;
 	nativeFilesWatcher: choki.FSWatcher;
@@ -18,6 +51,7 @@ export class PrepareController extends EventEmitter {
 	constructor(
 		private $platformController: IPlatformController,
 		public $hooksService: IHooksService,
+		private $fs: IFileSystem,
 		private $logger: ILogger,
 		private $mobileHelper: Mobile.IMobileHelper,
 		private $nodeModulesDependenciesBuilder: INodeModulesDependenciesBuilder,
@@ -29,79 +63,171 @@ export class PrepareController extends EventEmitter {
 		private $webpackCompilerService: IWebpackCompilerService,
 		private $watchIgnoreListService: IWatchIgnoreListService,
 		private $analyticsService: IAnalyticsService,
-		private $markingModeService: IMarkingModeService
-	) { super(); }
+		private $markingModeService: IMarkingModeService,
+		private $projectConfigService: IProjectConfigService
+	) {
+		super();
+	}
 
 	public async prepare(prepareData: IPrepareData): Promise<IPrepareResultData> {
-		const projectData = this.$projectDataService.getProjectData(prepareData.projectDir);
+		const projectData = this.$projectDataService.getProjectData(
+			prepareData.projectDir
+		);
 		if (this.$mobileHelper.isAndroidPlatform(prepareData.platform)) {
-			await this.$markingModeService.handleMarkingModeFullDeprecation({ projectDir: projectData.projectDir });
+			await this.$markingModeService.handleMarkingModeFullDeprecation({
+				projectDir: projectData.projectDir,
+			});
 		}
 
-		await this.trackRuntimeVersion(prepareData.platform, projectData);
 		await this.$pluginsService.ensureAllDependenciesAreInstalled(projectData);
 
 		return this.prepareCore(prepareData, projectData);
 	}
 
-	public async stopWatchers(projectDir: string, platform: string): Promise<void> {
+	public async stopWatchers(
+		projectDir: string,
+		platform: string
+	): Promise<void> {
 		const platformLowerCase = platform.toLowerCase();
 
-		if (this.watchersData && this.watchersData[projectDir] && this.watchersData[projectDir][platformLowerCase] && this.watchersData[projectDir][platformLowerCase].nativeFilesWatcher) {
-			this.watchersData[projectDir][platformLowerCase].nativeFilesWatcher.close();
-			this.watchersData[projectDir][platformLowerCase].nativeFilesWatcher = null;
+		if (
+			this.watchersData &&
+			this.watchersData[projectDir] &&
+			this.watchersData[projectDir][platformLowerCase] &&
+			this.watchersData[projectDir][platformLowerCase].nativeFilesWatcher
+		) {
+			await this.watchersData[projectDir][
+				platformLowerCase
+			].nativeFilesWatcher.close();
+			this.watchersData[projectDir][
+				platformLowerCase
+			].nativeFilesWatcher = null;
 		}
 
-		if (this.watchersData && this.watchersData[projectDir] && this.watchersData[projectDir][platformLowerCase] && this.watchersData[projectDir][platformLowerCase].hasWebpackCompilerProcess) {
+		if (
+			this.watchersData &&
+			this.watchersData[projectDir] &&
+			this.watchersData[projectDir][platformLowerCase] &&
+			this.watchersData[projectDir][platformLowerCase].hasWebpackCompilerProcess
+		) {
 			await this.$webpackCompilerService.stopWebpackCompiler(platformLowerCase);
-			this.$webpackCompilerService.removeListener(WEBPACK_COMPILATION_COMPLETE, this.webpackCompilerHandler);
-			this.watchersData[projectDir][platformLowerCase].hasWebpackCompilerProcess = false;
+			this.$webpackCompilerService.removeListener(
+				WEBPACK_COMPILATION_COMPLETE,
+				this.webpackCompilerHandler
+			);
+			this.watchersData[projectDir][
+				platformLowerCase
+			].hasWebpackCompilerProcess = false;
 		}
 	}
 
 	@performanceLog()
 	@hook("prepare")
-	private async prepareCore(prepareData: IPrepareData, projectData: IProjectData): Promise<IPrepareResultData> {
+	private async prepareCore(
+		prepareData: IPrepareData,
+		projectData: IProjectData
+	): Promise<IPrepareResultData> {
 		await this.$platformController.addPlatformIfNeeded(prepareData);
+		await this.trackRuntimeVersion(prepareData.platform, projectData);
 
 		this.$logger.info("Preparing project...");
-		let result = null;
 
-		const platformData = this.$platformsDataService.getPlatformData(prepareData.platform, projectData);
-
-		if (prepareData.watch) {
-			result = await this.startWatchersWithPrepare(platformData, projectData, prepareData);
-		} else {
-			await this.$webpackCompilerService.compileWithoutWatch(platformData, projectData, prepareData);
-			const hasNativeChanges = await this.$prepareNativePlatformService.prepareNativePlatform(platformData, projectData, prepareData);
-			result = { hasNativeChanges, platform: prepareData.platform.toLowerCase() };
+		if (this.$mobileHelper.isAndroidPlatform(prepareData.platform)) {
+			this.$projectConfigService.writeLegacyNSConfigIfNeeded(
+				projectData.projectDir,
+				this.$projectDataService.getRuntimePackage(
+					projectData.projectDir,
+					prepareData.platform as SupportedPlatform
+				)
+			);
 		}
 
-		await this.$projectChangesService.savePrepareInfo(platformData, projectData, prepareData);
+		let result = null;
 
-		this.$logger.info(`Project successfully prepared (${prepareData.platform.toLowerCase()})`);
+		const platformData = this.$platformsDataService.getPlatformData(
+			prepareData.platform,
+			projectData
+		);
+
+		if (prepareData.watch) {
+			result = await this.startWatchersWithPrepare(
+				platformData,
+				projectData,
+				prepareData
+			);
+		} else {
+			await this.$webpackCompilerService.compileWithoutWatch(
+				platformData,
+				projectData,
+				prepareData
+			);
+			const hasNativeChanges = await this.$prepareNativePlatformService.prepareNativePlatform(
+				platformData,
+				projectData,
+				prepareData
+			);
+			result = {
+				hasNativeChanges,
+				platform: prepareData.platform.toLowerCase(),
+			};
+		}
+
+		await this.writeRuntimePackageJson(projectData, platformData);
+
+		await this.$projectChangesService.savePrepareInfo(
+			platformData,
+			projectData,
+			prepareData
+		);
+
+		this.$logger.info(
+			`Project successfully prepared (${prepareData.platform.toLowerCase()})`
+		);
 
 		return result;
 	}
 
 	@hook("watch")
-	private async startWatchersWithPrepare(platformData: IPlatformData, projectData: IProjectData, prepareData: IPrepareData): Promise<IPrepareResultData> {
+	private async startWatchersWithPrepare(
+		platformData: IPlatformData,
+		projectData: IProjectData,
+		prepareData: IPrepareData
+	): Promise<IPrepareResultData> {
 		if (!this.watchersData[projectData.projectDir]) {
 			this.watchersData[projectData.projectDir] = {};
 		}
 
-		if (!this.watchersData[projectData.projectDir][platformData.platformNameLowerCase]) {
-			this.watchersData[projectData.projectDir][platformData.platformNameLowerCase] = {
+		if (
+			!this.watchersData[projectData.projectDir][
+				platformData.platformNameLowerCase
+			]
+		) {
+			this.watchersData[projectData.projectDir][
+				platformData.platformNameLowerCase
+			] = {
 				nativeFilesWatcher: null,
-				hasWebpackCompilerProcess: false
+				hasWebpackCompilerProcess: false,
 			};
 		}
 
-		await this.startJSWatcherWithPrepare(platformData, projectData, prepareData); // -> start watcher + initial compilation
-		const hasNativeChanges = await this.startNativeWatcherWithPrepare(platformData, projectData, prepareData); // -> start watcher + initial prepare
-		const result = { platform: platformData.platformNameLowerCase, hasNativeChanges };
+		await this.startJSWatcherWithPrepare(
+			platformData,
+			projectData,
+			prepareData
+		); // -> start watcher + initial compilation
+		const hasNativeChanges = await this.startNativeWatcherWithPrepare(
+			platformData,
+			projectData,
+			prepareData
+		); // -> start watcher + initial prepare
+		const result = {
+			platform: platformData.platformNameLowerCase,
+			hasNativeChanges,
+		};
 
-		const hasPersistedDataWithNativeChanges = this.persistedData.find(data => data.platform === result.platform && data.hasNativeChanges);
+		const hasPersistedDataWithNativeChanges = this.persistedData.find(
+			(data) => data.platform === result.platform && data.hasNativeChanges
+		);
 		if (hasPersistedDataWithNativeChanges) {
 			result.hasNativeChanges = true;
 		}
@@ -110,45 +236,88 @@ export class PrepareController extends EventEmitter {
 		this.isInitialPrepareReady = true;
 
 		if (this.persistedData && this.persistedData.length) {
-			this.emitPrepareEvent({ files: [], hasOnlyHotUpdateFiles: false, hasNativeChanges: result.hasNativeChanges, hmrData: null, platform: platformData.platformNameLowerCase });
+			this.emitPrepareEvent({
+				files: [],
+				hasOnlyHotUpdateFiles: false,
+				hasNativeChanges: result.hasNativeChanges,
+				hmrData: null,
+				platform: platformData.platformNameLowerCase,
+			});
 		}
 
 		return result;
 	}
 
-	private async startJSWatcherWithPrepare(platformData: IPlatformData, projectData: IProjectData, prepareData: IPrepareData): Promise<void> {
-		if (!this.watchersData[projectData.projectDir][platformData.platformNameLowerCase].hasWebpackCompilerProcess) {
+	private async startJSWatcherWithPrepare(
+		platformData: IPlatformData,
+		projectData: IProjectData,
+		prepareData: IPrepareData
+	): Promise<void> {
+		if (
+			!this.watchersData[projectData.projectDir][
+				platformData.platformNameLowerCase
+			].hasWebpackCompilerProcess
+		) {
 			const handler = (data: any) => {
-				if (data.platform.toLowerCase() === platformData.platformNameLowerCase) {
+				if (
+					data.platform.toLowerCase() === platformData.platformNameLowerCase
+				) {
 					this.emitPrepareEvent({ ...data, hasNativeChanges: false });
 				}
 			};
 
 			this.webpackCompilerHandler = handler.bind(this);
-			this.$webpackCompilerService.on(WEBPACK_COMPILATION_COMPLETE, this.webpackCompilerHandler);
+			this.$webpackCompilerService.on(
+				WEBPACK_COMPILATION_COMPLETE,
+				this.webpackCompilerHandler
+			);
 
-			this.watchersData[projectData.projectDir][platformData.platformNameLowerCase].hasWebpackCompilerProcess = true;
-			await this.$webpackCompilerService.compileWithWatch(platformData, projectData, prepareData);
+			this.watchersData[projectData.projectDir][
+				platformData.platformNameLowerCase
+			].hasWebpackCompilerProcess = true;
+			await this.$webpackCompilerService.compileWithWatch(
+				platformData,
+				projectData,
+				prepareData
+			);
 		}
 	}
 
-	private async startNativeWatcherWithPrepare(platformData: IPlatformData, projectData: IProjectData, prepareData: IPrepareData): Promise<boolean> {
+	private async startNativeWatcherWithPrepare(
+		platformData: IPlatformData,
+		projectData: IProjectData,
+		prepareData: IPrepareData
+	): Promise<boolean> {
 		let newNativeWatchStarted = false;
 		let hasNativeChanges = false;
 
 		if (prepareData.watchNative) {
-			newNativeWatchStarted = await this.startNativeWatcher(platformData, projectData);
+			newNativeWatchStarted = await this.startNativeWatcher(
+				platformData,
+				projectData
+			);
 		}
 
 		if (newNativeWatchStarted) {
-			hasNativeChanges = await this.$prepareNativePlatformService.prepareNativePlatform(platformData, projectData, prepareData);
+			hasNativeChanges = await this.$prepareNativePlatformService.prepareNativePlatform(
+				platformData,
+				projectData,
+				prepareData
+			);
 		}
 
 		return hasNativeChanges;
 	}
 
-	private async startNativeWatcher(platformData: IPlatformData, projectData: IProjectData): Promise<boolean> {
-		if (this.watchersData[projectData.projectDir][platformData.platformNameLowerCase].nativeFilesWatcher) {
+	private async startNativeWatcher(
+		platformData: IPlatformData,
+		projectData: IProjectData
+	): Promise<boolean> {
+		if (
+			this.watchersData[projectData.projectDir][
+				platformData.platformNameLowerCase
+			].nativeFilesWatcher
+		) {
 			return false;
 		}
 
@@ -159,44 +328,130 @@ export class PrepareController extends EventEmitter {
 			cwd: projectData.projectDir,
 			awaitWriteFinish: {
 				pollInterval: 100,
-				stabilityThreshold: 500
+				stabilityThreshold: 500,
 			},
-			ignored: ["**/.*", ".*"] // hidden files
+			ignored: ["**/.*", ".*"], // hidden files
 		};
-		const watcher = choki.watch(patterns, watcherOptions)
+		const watcher = choki
+			.watch(patterns, watcherOptions)
 			.on("all", async (event: string, filePath: string) => {
 				filePath = path.join(projectData.projectDir, filePath);
 				if (this.$watchIgnoreListService.isFileInIgnoreList(filePath)) {
 					this.$watchIgnoreListService.removeFileFromIgnoreList(filePath);
 				} else {
 					this.$logger.info(`Chokidar raised event ${event} for ${filePath}.`);
-					this.emitPrepareEvent({ files: [], hasOnlyHotUpdateFiles: false, hmrData: null, hasNativeChanges: true, platform: platformData.platformNameLowerCase });
+					await this.writeRuntimePackageJson(projectData, platformData);
+					this.emitPrepareEvent({
+						files: [],
+						hasOnlyHotUpdateFiles: false,
+						hmrData: null,
+						hasNativeChanges: true,
+						platform: platformData.platformNameLowerCase,
+					});
 				}
 			});
 
-		this.watchersData[projectData.projectDir][platformData.platformNameLowerCase].nativeFilesWatcher = watcher;
+		this.watchersData[projectData.projectDir][
+			platformData.platformNameLowerCase
+		].nativeFilesWatcher = watcher;
 
 		return true;
 	}
 
-	@hook('watchPatterns')
-	public async getWatcherPatterns(platformData: IPlatformData, projectData: IProjectData): Promise<string[]> {
-		const dependencies = this.$nodeModulesDependenciesBuilder.getProductionDependencies(projectData.projectDir)
-			.filter(dep => dep.nativescript);
-		const pluginsNativeDirectories = dependencies
-			.map(dep => path.join(dep.directory, PLATFORMS_DIR_NAME, platformData.platformNameLowerCase));
-		const pluginsPackageJsonFiles = dependencies.map(dep => path.join(dep.directory, PACKAGE_JSON_FILE_NAME));
+	@hook("watchPatterns")
+	public async getWatcherPatterns(
+		platformData: IPlatformData,
+		projectData: IProjectData
+	): Promise<string[]> {
+		const dependencies = this.$nodeModulesDependenciesBuilder
+			.getProductionDependencies(projectData.projectDir)
+			.filter((dep) => dep.nativescript);
+		const pluginsNativeDirectories = dependencies.map((dep) =>
+			path.join(
+				dep.directory,
+				PLATFORMS_DIR_NAME,
+				platformData.platformNameLowerCase
+			)
+		);
+		const pluginsPackageJsonFiles = dependencies.map((dep) =>
+			path.join(dep.directory, PACKAGE_JSON_FILE_NAME)
+		);
 
 		const patterns = [
 			path.join(projectData.projectDir, PACKAGE_JSON_FILE_NAME),
-			path.join(projectData.projectDir, CONFIG_NS_FILE_NAME),
+			path.join(projectData.projectDir, CONFIG_FILE_NAME_JS),
+			path.join(projectData.projectDir, CONFIG_FILE_NAME_TS),
 			path.join(projectData.getAppDirectoryPath(), PACKAGE_JSON_FILE_NAME),
-			path.join(projectData.getAppResourcesRelativeDirectoryPath(), platformData.normalizedPlatformName),
+			path.join(
+				projectData.getAppResourcesRelativeDirectoryPath(),
+				platformData.normalizedPlatformName
+			),
 		]
 			.concat(pluginsNativeDirectories)
 			.concat(pluginsPackageJsonFiles);
 
 		return patterns;
+	}
+
+	public async writeRuntimePackageJson(
+		projectData: IProjectData,
+		platformData: IPlatformData
+	) {
+		const configInfo = this.$projectConfigService.detectProjectConfigs(
+			projectData.projectDir
+		);
+		if (configInfo.usingNSConfig) {
+			return;
+		}
+
+		this.$logger.info(
+			"Updating runtime package.json with configuration values..."
+		);
+		const nsConfig = this.$projectConfigService.readConfig(
+			projectData.projectDir
+		);
+		const packageData: any = {
+			main: "bundle",
+			..._.pick(projectData.packageJsonData, ["name"]),
+			...nsConfig,
+		};
+		if (
+			platformData.platformNameLowerCase === "ios" &&
+			packageData.ios &&
+			packageData.ios.discardUncaughtJsExceptions
+		) {
+			packageData.discardUncaughtJsExceptions =
+				packageData.ios.discardUncaughtJsExceptions;
+		}
+		if (
+			platformData.platformNameLowerCase === "android" &&
+			packageData.android &&
+			packageData.android.discardUncaughtJsExceptions
+		) {
+			packageData.discardUncaughtJsExceptions =
+				packageData.android.discardUncaughtJsExceptions;
+		}
+		let packagePath: string;
+		if (platformData.platformNameLowerCase === "ios") {
+			packagePath = path.join(
+				platformData.projectRoot,
+				projectData.projectName,
+				"app",
+				"package.json"
+			);
+		} else {
+			packagePath = path.join(
+				platformData.projectRoot,
+				"app",
+				"src",
+				"main",
+				"assets",
+				"app",
+				"package.json"
+			);
+		}
+
+		this.$fs.writeJson(packagePath, packageData);
 	}
 
 	private emitPrepareEvent(filesChangeEventData: IFilesChangeEventData) {
@@ -208,22 +463,27 @@ export class PrepareController extends EventEmitter {
 	}
 
 	@cache()
-	private async trackRuntimeVersion(platform: string, projectData: IProjectData): Promise<void> {
-		let runtimeVersion: string = null;
-		try {
-			const platformData = this.$platformsDataService.getPlatformData(platform, projectData);
-			const runtimeVersionData = this.$projectDataService.getNSValue(projectData.projectDir, platformData.frameworkPackageName);
-			runtimeVersion = runtimeVersionData && runtimeVersionData.version;
-		} catch (err) {
-			this.$logger.trace(`Unable to get runtime version for project directory: ${projectData.projectDir} and platform ${platform}. Error is: `, err);
+	private async trackRuntimeVersion(
+		platform: string,
+		projectData: IProjectData
+	): Promise<void> {
+		const { version } = this.$projectDataService.getRuntimePackage(
+			projectData.projectDir,
+			platform as SupportedPlatform
+		);
+
+		if (!version) {
+			this.$logger.trace(
+				`Unable to get runtime version for project directory: ${projectData.projectDir} and platform ${platform}.`
+			);
+			return;
 		}
 
-		if (runtimeVersion) {
-			await this.$analyticsService.trackEventActionInGoogleAnalytics({
-				action: TrackActionNames.UsingRuntimeVersion,
-				additionalData: `${platform.toLowerCase()}${AnalyticsEventLabelDelimiter}${runtimeVersion}`
-			});
-		}
+		await this.$analyticsService.trackEventActionInGoogleAnalytics({
+			action: TrackActionNames.UsingRuntimeVersion,
+			additionalData: `${platform.toLowerCase()}${AnalyticsEventLabelDelimiter}${version}`,
+		});
 	}
 }
-$injector.register("prepareController", PrepareController);
+
+injector.register("prepareController", PrepareController);

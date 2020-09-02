@@ -2,6 +2,14 @@ import { Yok } from "../../yok";
 import { HostInfo } from "../../host-info";
 import { ErrorsStub, CommonLoggerStub } from "./stubs";
 import { assert } from "chai";
+import {
+	IErrors,
+	IHostInfo,
+	IChildProcess,
+	IExecOptions,
+	IOsInfo,
+} from "../../declarations";
+import { IInjector } from "../../definitions/yok";
 
 // Use custom class as isDarwin has only getter in HostInfo, while for current tests we need to set it to true or false.
 class MockHostInfo extends HostInfo {
@@ -41,7 +49,7 @@ describe("hostInfo", () => {
 			hostInfo.isDarwin = false;
 
 			const macOSVersion = await hostInfo.getMacOSVersion();
-			assert.deepEqual(macOSVersion, null);
+			assert.deepStrictEqual(macOSVersion, null);
 		});
 
 		it("returns correct macOS version based on system_profile", async () => {
@@ -49,7 +57,11 @@ describe("hostInfo", () => {
 			const hostInfo = testInjector.resolve<IHostInfo>("hostInfo");
 			const childProcess = testInjector.resolve<IChildProcess>("childProcess");
 			let calledCommand = "";
-			childProcess.exec = async (command: string, options?: any, execOptions?: IExecOptions): Promise<any> => {
+			childProcess.exec = async (
+				command: string,
+				options?: any,
+				execOptions?: IExecOptions
+			): Promise<any> => {
 				calledCommand = command;
 				return `Software:
 
@@ -61,8 +73,11 @@ describe("hostInfo", () => {
 			};
 
 			const macOSVersion = await hostInfo.getMacOSVersion();
-			assert.deepEqual(macOSVersion, "10.13");
-			assert.equal(calledCommand, "system_profiler SPSoftwareDataType -detailLevel mini");
+			assert.deepStrictEqual(macOSVersion, "10.13");
+			assert.equal(
+				calledCommand,
+				"system_profiler SPSoftwareDataType -detailLevel mini"
+			);
 		});
 
 		it("returns correct macOS version based on system_profile, when version has two numbers only", async () => {
@@ -70,7 +85,11 @@ describe("hostInfo", () => {
 			const hostInfo = testInjector.resolve<IHostInfo>("hostInfo");
 			const childProcess = testInjector.resolve<IChildProcess>("childProcess");
 			let calledCommand = "";
-			childProcess.exec = async (command: string, options?: any, execOptions?: IExecOptions): Promise<any> => {
+			childProcess.exec = async (
+				command: string,
+				options?: any,
+				execOptions?: IExecOptions
+			): Promise<any> => {
 				calledCommand = command;
 				return `Software:
 
@@ -82,36 +101,47 @@ describe("hostInfo", () => {
 			};
 
 			const macOSVersion = await hostInfo.getMacOSVersion();
-			assert.deepEqual(macOSVersion, "10.14");
-			assert.equal(calledCommand, "system_profiler SPSoftwareDataType -detailLevel mini");
+			assert.deepStrictEqual(macOSVersion, "10.14");
+			assert.equal(
+				calledCommand,
+				"system_profiler SPSoftwareDataType -detailLevel mini"
+			);
 		});
 
 		it("returns correct macOS version when system_profile call throws", async () => {
 			const testInjector = createTestInjector();
 			const hostInfo = testInjector.resolve<IHostInfo>("hostInfo");
 			const childProcess = testInjector.resolve<IChildProcess>("childProcess");
-			childProcess.exec = async (command: string, options?: any, execOptions?: IExecOptions): Promise<any> => {
+			childProcess.exec = async (
+				command: string,
+				options?: any,
+				execOptions?: IExecOptions
+			): Promise<any> => {
 				throw new Error("Err");
 			};
 
 			const osInfo = testInjector.resolve<IOsInfo>("osInfo");
 			osInfo.release = (): string => "17.4.0";
 			const macOSVersion = await hostInfo.getMacOSVersion();
-			assert.deepEqual(macOSVersion, "10.13");
+			assert.deepStrictEqual(macOSVersion, "10.13");
 		});
 
 		it("returns correct macOS version when system_profile call returns data that does not match our RegExp", async () => {
 			const testInjector = createTestInjector();
 			const hostInfo = testInjector.resolve<IHostInfo>("hostInfo");
 			const childProcess = testInjector.resolve<IChildProcess>("childProcess");
-			childProcess.exec = async (command: string, options?: any, execOptions?: IExecOptions): Promise<any> => {
+			childProcess.exec = async (
+				command: string,
+				options?: any,
+				execOptions?: IExecOptions
+			): Promise<any> => {
 				return "Non-matching data";
 			};
 
 			const osInfo = testInjector.resolve<IOsInfo>("osInfo");
 			osInfo.release = (): string => "17.4.0";
 			const macOSVersion = await hostInfo.getMacOSVersion();
-			assert.deepEqual(macOSVersion, "10.13");
+			assert.deepStrictEqual(macOSVersion, "10.13");
 		});
 	});
 });

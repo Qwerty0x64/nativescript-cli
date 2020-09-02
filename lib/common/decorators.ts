@@ -1,4 +1,7 @@
 import { AnalyticsEventLabelDelimiter } from "../constants";
+import { IPerformanceService } from "../declarations";
+import { IInjector } from "./definitions/yok";
+import { injector } from "./yok";
 
 /**
  * Caches the result of the first execution of the method and returns it whenever it is called instead of executing it again.
@@ -27,7 +30,11 @@ import { AnalyticsEventLabelDelimiter } from "../constants";
  * ```
  */
 export function cache(): any {
-	return (target: Object, propertyKey: string, descriptor: TypedPropertyDescriptor<any>): TypedPropertyDescriptor<any> => {
+	return (
+		target: Object,
+		propertyKey: string,
+		descriptor: TypedPropertyDescriptor<any>
+	): TypedPropertyDescriptor<any> => {
 		let result: any;
 		const propName: string = descriptor.value ? "value" : "get";
 
@@ -56,7 +63,11 @@ export function cache(): any {
  * @return {any} Result of the decorated method.
  */
 export function invokeBefore(methodName: string, methodArgs?: any[]): any {
-	return (target: Object, propertyKey: string, descriptor: TypedPropertyDescriptor<any>): TypedPropertyDescriptor<any> => {
+	return (
+		target: any,
+		propertyKey: string,
+		descriptor: TypedPropertyDescriptor<any>
+	): TypedPropertyDescriptor<any> => {
 		const originalValue = descriptor.value;
 		descriptor.value = async function (...args: any[]) {
 			await target[methodName].apply(this, methodArgs);
@@ -72,10 +83,17 @@ export function invokeInit(): any {
 }
 
 export function exported(moduleName: string): any {
-	return (target: Object, propertyKey: string, descriptor: TypedPropertyDescriptor<any>): TypedPropertyDescriptor<any> => {
-		$injector.publicApi.__modules__[moduleName] = $injector.publicApi.__modules__[moduleName] || {};
-		$injector.publicApi.__modules__[moduleName][propertyKey] = (...args: any[]): any => {
-			const originalModule = $injector.resolve(moduleName),
+	return (
+		target: Object,
+		propertyKey: string,
+		descriptor: TypedPropertyDescriptor<any>
+	): TypedPropertyDescriptor<any> => {
+		injector.publicApi.__modules__[moduleName] =
+			injector.publicApi.__modules__[moduleName] || {};
+		injector.publicApi.__modules__[moduleName][propertyKey] = (
+			...args: any[]
+		): any => {
+			const originalModule = injector.resolve(moduleName),
 				originalMethod: any = originalModule[propertyKey],
 				result = originalMethod.apply(originalModule, args);
 
@@ -86,13 +104,19 @@ export function exported(moduleName: string): any {
 	};
 }
 
-export function performanceLog(injector?: IInjector): any {
-	injector = injector || $injector;
-	return function (target: any, propertyKey: string, descriptor: PropertyDescriptor): any {
+export function performanceLog(localInjector?: IInjector): any {
+	localInjector = localInjector || injector;
+	return function (
+		target: any,
+		propertyKey: string,
+		descriptor: PropertyDescriptor
+	): any {
 		const originalMethod = descriptor.value;
 		const className = target.constructor.name;
 		const trackName = `${className}${AnalyticsEventLabelDelimiter}${propertyKey}`;
-		const performanceService: IPerformanceService = injector.resolve("performanceService");
+		const performanceService: IPerformanceService = localInjector.resolve(
+			"performanceService"
+		);
 
 		//needed for the returned function to have the same name as the original - used in hooks decorator
 		const functionWrapper = {
@@ -109,16 +133,26 @@ export function performanceLog(injector?: IInjector): any {
 					resolvedPromise
 						.then(() => {
 							end = performanceService.now();
-							performanceService.processExecutionData(trackName, start, end, args);
+							performanceService.processExecutionData(
+								trackName,
+								start,
+								end,
+								args
+							);
 						})
 						.catch((err) => {
 							end = performanceService.now();
-							performanceService.processExecutionData(trackName, start, end, args);
+							performanceService.processExecutionData(
+								trackName,
+								start,
+								end,
+								args
+							);
 						});
 				}
 
 				return result;
-			}
+			},
 		};
 		descriptor.value = functionWrapper[originalMethod.name];
 
@@ -132,19 +166,28 @@ export function performanceLog(injector?: IInjector): any {
 }
 
 // inspired by https://github.com/NativeScript/NativeScript/blob/55dfe25938569edbec89255008e5ad9804901305/tns-core-modules/globals/globals.ts#L121-L137
-export function deprecated(additionalInfo?: string, injector?: IInjector): any {
+export function deprecated(
+	additionalInfo?: string,
+	localInjector?: IInjector
+): any {
 	const isDeprecatedMessage = " is deprecated.";
-	return (target: Object, key: string, descriptor: TypedPropertyDescriptor<any>): TypedPropertyDescriptor<any> => {
-		injector = injector || $injector;
+	return (
+		target: Object,
+		key: string,
+		descriptor: TypedPropertyDescriptor<any>
+	): TypedPropertyDescriptor<any> => {
+		localInjector = localInjector || injector;
 		additionalInfo = additionalInfo || "";
-		const $logger = <ILogger>injector.resolve("logger");
+		const $logger = <ILogger>localInjector.resolve("logger");
 		if (descriptor) {
 			if (descriptor.value) {
 				// method
 				const originalMethod = descriptor.value;
 
 				descriptor.value = function (...args: any[]) {
-					$logger.warn(`${key.toString()}${isDeprecatedMessage} ${additionalInfo}`);
+					$logger.warn(
+						`${key.toString()}${isDeprecatedMessage} ${additionalInfo}`
+					);
 
 					return originalMethod.apply(this, args);
 				};
@@ -155,7 +198,9 @@ export function deprecated(additionalInfo?: string, injector?: IInjector): any {
 				if (descriptor.set) {
 					const originalSetter = descriptor.set;
 					descriptor.set = function (...args: any[]) {
-						$logger.warn(`${key.toString()}${isDeprecatedMessage} ${additionalInfo}`);
+						$logger.warn(
+							`${key.toString()}${isDeprecatedMessage} ${additionalInfo}`
+						);
 
 						originalSetter.apply(this, args);
 					};
@@ -164,7 +209,9 @@ export function deprecated(additionalInfo?: string, injector?: IInjector): any {
 				if (descriptor.get) {
 					const originalGetter = descriptor.get;
 					descriptor.get = function (...args: any[]) {
-						$logger.warn(`${key.toString()}${isDeprecatedMessage} ${additionalInfo}`);
+						$logger.warn(
+							`${key.toString()}${isDeprecatedMessage} ${additionalInfo}`
+						);
 
 						return originalGetter.apply(this, args);
 					};
@@ -174,7 +221,14 @@ export function deprecated(additionalInfo?: string, injector?: IInjector): any {
 			}
 		} else {
 			// class
-			$logger.warn(`${((target && ((<any>target).name || ((<any>target).constructor && (<any>target).constructor.name))) || target)}${isDeprecatedMessage} ${additionalInfo}`);
+			$logger.warn(
+				`${
+					(target &&
+						((<any>target).name ||
+							((<any>target).constructor && (<any>target).constructor.name))) ||
+					target
+				}${isDeprecatedMessage} ${additionalInfo}`
+			);
 
 			return target;
 		}

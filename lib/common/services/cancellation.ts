@@ -1,18 +1,27 @@
 import * as choki from "chokidar";
 import * as path from "path";
 import * as os from "os";
+import * as _ from "lodash";
+import {
+	IHostInfo,
+	IFileSystem,
+	IDictionary,
+	ICancellationService,
+	ErrorCodes,
+} from "../declarations";
+import { injector } from "../yok";
 
 class CancellationService implements ICancellationService {
 	private watches: IDictionary<choki.FSWatcher> = {};
 
-	constructor(private $fs: IFileSystem,
+	constructor(
+		private $fs: IFileSystem,
 		private $logger: ILogger,
-		private $hostInfo: IHostInfo) {
-
+		private $hostInfo: IHostInfo
+	) {
 		if (this.$hostInfo.isWindows) {
 			this.$fs.createDirectory(CancellationService.killSwitchDir);
 		}
-
 	}
 
 	public async begin(name: string): Promise<void> {
@@ -28,9 +37,12 @@ class CancellationService implements ICancellationService {
 
 		this.$logger.trace("Starting watch on killswitch %s", triggerFile);
 
-		const watcher = choki.watch(triggerFile, { ignoreInitial: true })
+		const watcher = choki
+			.watch(triggerFile, { ignoreInitial: true })
 			.on("unlink", (filePath: string) => {
-				this.$logger.info(`Exiting process as the file ${filePath} has been deleted. Probably reinstalling CLI while there's a working instance.`);
+				this.$logger.info(
+					`Exiting process as the file ${filePath} has been deleted. Probably reinstalling CLI while there's a working instance.`
+				);
 				process.exit(ErrorCodes.DELETED_KILL_FILE);
 			});
 
@@ -43,16 +55,22 @@ class CancellationService implements ICancellationService {
 		const watcher = this.watches[name];
 		if (watcher) {
 			delete this.watches[name];
-			watcher.close();
+			watcher.close().then().catch();
 		}
 	}
 
 	public dispose(): void {
-		_(this.watches).keys().each(name => this.end(name));
+		_(this.watches)
+			.keys()
+			.each((name) => this.end(name));
 	}
 
 	private static get killSwitchDir(): string {
-		return path.join(os.tmpdir(), process.env.SUDO_USER || process.env.USER || process.env.USERNAME || '', "KillSwitches");
+		return path.join(
+			os.tmpdir(),
+			process.env.SUDO_USER || process.env.USER || process.env.USERNAME || "",
+			"KillSwitches"
+		);
 	}
 
 	private static makeKillSwitchFileName(name: string): string {
@@ -60,4 +78,4 @@ class CancellationService implements ICancellationService {
 	}
 }
 
-$injector.register("cancellation", CancellationService);
+injector.register("cancellation", CancellationService);

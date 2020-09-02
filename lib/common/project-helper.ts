@@ -1,11 +1,18 @@
 import * as path from "path";
+import * as _ from "lodash";
+import { IErrors, IFileSystem, IProjectHelper } from "./declarations";
+import { IOptions } from "../declarations";
+import { injector } from "./yok";
+import { SCOPED_TNS_CORE_MODULES, TNS_CORE_MODULES_NAME } from "../constants";
 
 export class ProjectHelper implements IProjectHelper {
-	constructor(private $logger: ILogger,
+	constructor(
+		private $logger: ILogger,
 		private $fs: IFileSystem,
 		private $staticConfig: Config.IStaticConfig,
 		private $errors: IErrors,
-		private $options: IOptions) { }
+		private $options: IOptions
+	) {}
 
 	private cachedProjectDir = "";
 
@@ -18,9 +25,15 @@ export class ProjectHelper implements IProjectHelper {
 		let projectDir = path.resolve(this.$options.path || ".");
 		while (true) {
 			this.$logger.trace("Looking for project in '%s'", projectDir);
-			const projectFilePath = path.join(projectDir, this.$staticConfig.PROJECT_FILE_NAME);
+			const projectFilePath = path.join(
+				projectDir,
+				this.$staticConfig.PROJECT_FILE_NAME
+			);
 
-			if (this.$fs.exists(projectFilePath) && this.isProjectFileCorrect(projectFilePath)) {
+			if (
+				this.$fs.exists(projectFilePath) &&
+				this.isProjectFileCorrect(projectFilePath)
+			) {
 				this.$logger.debug("Project directory is '%s'.", projectDir);
 				this.cachedProjectDir = projectDir;
 				break;
@@ -28,7 +41,10 @@ export class ProjectHelper implements IProjectHelper {
 
 			const dir = path.dirname(projectDir);
 			if (dir === projectDir) {
-				this.$logger.debug("No project found at or above '%s'.", this.$options.path || path.resolve("."));
+				this.$logger.debug(
+					"No project found at or above '%s'.",
+					this.$options.path || path.resolve(".")
+				);
 				break;
 			}
 			projectDir = dir;
@@ -51,22 +67,28 @@ export class ProjectHelper implements IProjectHelper {
 	}
 
 	public sanitizeName(appName: string): string {
-		const sanitizedName = _.filter(appName.split(""), (c) => /[a-zA-Z0-9]/.test(c)).join("");
+		const sanitizedName = _.filter(appName.split(""), (c) =>
+			/[a-zA-Z0-9]/.test(c)
+		).join("");
 		return sanitizedName;
 	}
 
 	private isProjectFileCorrect(projectFilePath: string): boolean {
-		if (this.$staticConfig.CLIENT_NAME_KEY_IN_PROJECT_FILE) {
-			try {
-				const fileContent = this.$fs.readJson(projectFilePath);
-				const clientSpecificData = fileContent[this.$staticConfig.CLIENT_NAME_KEY_IN_PROJECT_FILE] && fileContent[this.$staticConfig.CLIENT_NAME_KEY_IN_PROJECT_FILE].id;
-				return !!clientSpecificData;
-			} catch (err) {
-				this.$errors.fail("The project file is corrupted. Additional technical information: %s", err);
-			}
+		try {
+			const fileContent = this.$fs.readText(projectFilePath);
+			return (
+				fileContent.includes(SCOPED_TNS_CORE_MODULES) ||
+				fileContent.includes(TNS_CORE_MODULES_NAME)
+			);
+		} catch (err) {
+			this.$errors.fail(
+				"The project file is corrupted. Additional technical information: %s",
+				err
+			);
 		}
 
-		return true;
+		return false;
 	}
 }
-$injector.register("projectHelper", ProjectHelper);
+
+injector.register("projectHelper", ProjectHelper);
